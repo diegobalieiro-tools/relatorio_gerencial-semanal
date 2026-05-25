@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+.env
+.env.*
+*.sqlite3
+
+# FastAPI / uploads / outputs
+backend/app/uploads/
+backend/app/outputs/
+backend/uploads/
+backend/outputs/
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+
+# Logs
+*.log
+logs/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Alembic cache
+*.pyc
+
+# Arquivos sensíveis/anexos reais
+*.pdf
+*.docx
+*.xlsx
+*.xls
+*.png
+*.jpg
+*.jpeg

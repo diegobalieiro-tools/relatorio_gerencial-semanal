@@ -1,0 +1,12 @@
+nihirmação=informação
+endanmaçãe=informação
+shirmação=informação
+Ocharte=O Cliente
+Ochieta=O Cliente
+Chiente=O Cliente
+Cronogama=cronograma
+cronegrama=cronograma
+Curva 5=Curva S
+Rd0=RDO
+tututapes=tubulações
+tutulacbenc=tubulações

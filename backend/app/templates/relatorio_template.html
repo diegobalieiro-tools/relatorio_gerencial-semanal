@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+{% set report = report or {} %}
+{% set meta = report.get('meta', {}) %}
+{% set hero = report.get('hero', {}) %}
+{% set critical_alert = report.get('criticalAlert', {}) %}
+<title>Relatório Semanal · {{ meta.get('project') or 'Obra' }} · TOOLS</title>
+<meta name="description" content="Relatório semanal de obra {{ meta.get('project') or '' }} — análise executiva, cronograma, ambientes, plano de ação e ata de reunião." />
+<style>
+:root{
+  --brand:#0c8a9a;
+  --brand-deep:#0a5b66;
+  --brand-soft:#e6f4f6;
+  --brand-foreground:#ffffff;
+  --background:#fbfcfd;
+  --foreground:#15212b;
+  --card:#ffffff;
+  --secondary:#eef4f6;
+  --muted:#eef2f4;
+  --muted-foreground:#5c6b78;
+  --border:#e3eaee;
+  --destructive:#d23a2b;
+  --warning:#e0a13a;
+  --warning-foreground:#3c2a0b;
+  --success:#2f9e6a;
+  --radius:.75rem;
+  --shadow-card:0 1px 2px rgba(0,0,0,.04),0 8px 24px -12px rgba(0,0,0,.08);
+  --gradient-brand:linear-gradient(135deg,var(--brand-deep),var(--brand));
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--background);color:var(--foreground);
+  -webkit-font-smoothing:antialiased;line-height:1.5;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+button{font:inherit;cursor:pointer;border:0;background:transparent;color:inherit}
+
+/* container */
+.container{max-width:1152px;margin:0 auto;padding:0 1rem}
+@media(min-width:640px){.container{padding:0 1.5rem}}
+@media(min-width:1024px){.container{padding:0 2rem}}
+
+/* header */
+.hero{position:relative;overflow:hidden;background:var(--brand-deep);color:#fff}
+.hero::before{content:"";position:absolute;inset:0;background:var(--gradient-brand);opacity:.5}
+.hero::after{content:"";position:absolute;right:-96px;top:-96px;width:420px;height:420px;border-radius:50%;background:var(--brand);opacity:.3;filter:blur(60px);pointer-events:none}
+.hero-inner{position:relative;padding:2rem 0 2.5rem}
+.hero-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1.5rem}
+.brand{display:flex;align-items:center;gap:1rem}
+.brand img{width:48px;height:48px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.25);outline:1px solid rgba(255,255,255,.2)}
+.brand .eyebrow{font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+.brand .sub{font-size:13px;color:rgba(255,255,255,.8);margin-top:2px}
+.pills{display:flex;flex-wrap:wrap;gap:.5rem}
+.pill{display:inline-flex;align-items:center;padding:.3rem .75rem;border-radius:9999px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:rgba(255,255,255,.1);outline:1px solid rgba(255,255,255,.2);backdrop-filter:blur(8px)}
+.pill.warn{background:rgba(224,161,58,.2);outline-color:rgba(224,161,58,.4)}
+.pill.crit{background:rgba(210,58,43,.2);outline-color:rgba(210,58,43,.4)}
+.h1{margin:2.5rem 0 .75rem;font-size:clamp(1.75rem,4vw,3rem);font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.meta-line{color:rgba(255,255,255,.7);font-size:13px}
+.stats{margin-top:2.5rem;display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(255,255,255,.1);border-radius:16px;overflow:hidden;backdrop-filter:blur(8px)}
+@media(min-width:640px){.stats{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1024px){.stats{grid-template-columns:repeat(6,1fr)}}
+.stat{background:rgba(10,91,102,.4);padding:1rem}
+.stat .label{font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.stat .value{margin-top:.25rem;font-size:1rem;font-weight:600;color:#fff}
+@media(min-width:640px){.stat .value{font-size:1.125rem}}
+.stat.high .value{color:#fde6b6}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:30;background:rgba(251,252,253,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.nav-scroll{display:flex;gap:.25rem;overflow-x:auto;padding:.5rem 0;scrollbar-width:none}
+.nav-scroll::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:.5rem 1rem;border-radius:9999px;font-size:14px;font-weight:500;color:var(--muted-foreground);transition:.15s;white-space:nowrap}
+.tab:hover{background:var(--muted);color:var(--foreground)}
+.tab.active{background:var(--brand);color:var(--brand-foreground);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+
+/* sections */
+main{padding:2.5rem 0 6rem}
+section{padding-top:3rem;scroll-margin-top:96px}
+section:first-child{padding-top:0}
+.sect-header{margin-bottom:2rem;display:flex;flex-direction:column;gap:.75rem}
+@media(min-width:768px){.sect-header{flex-direction:row;align-items:flex-end;justify-content:space-between;gap:2rem}}
+.sect-title-wrap{display:flex;align-items:flex-start;gap:1rem}
+.sect-num{flex-shrink:0;width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--brand);color:var(--brand-foreground);font-weight:600;font-variant-numeric:tabular-nums}
+.sect-eyebrow{font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--brand-deep);margin:0}
+.sect-title{margin:.25rem 0 0;font-size:1.5rem;font-weight:600;letter-spacing:-.02em}
+@media(min-width:768px){.sect-title{font-size:1.875rem}}
+.sect-desc{max-width:36rem;font-size:14px;color:var(--muted-foreground);margin:0}
+@media(min-width:768px){.sect-desc{text-align:right}}
+
+/* sticker */
+.sticker{display:inline-flex;align-items:center;gap:.375rem;border:1px solid var(--border);background:var(--muted);color:var(--muted-foreground);padding:.125rem .625rem;border-radius:9999px;font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase}
+.sticker.critico{background:rgba(210,58,43,.1);color:var(--destructive);border-color:rgba(210,58,43,.3)}
+.sticker.alto{background:rgba(224,161,58,.15);color:var(--warning-foreground);border-color:rgba(224,161,58,.4)}
+.sticker.moderado{background:var(--brand-soft);color:var(--brand-deep);border-color:rgba(12,138,154,.3)}
+.sticker.ok{background:rgba(47,158,106,.15);color:var(--success);border-color:rgba(47,158,106,.3)}
+.sticker.brand{background:var(--brand);color:var(--brand-foreground);border-color:transparent}
+
+/* progress */
+.prog{height:6px;width:100%;background:var(--muted);border-radius:9999px;overflow:hidden}
+.prog>span{display:block;height:100%;border-radius:9999px;transition:width .4s}
+.prog.brand>span{background:var(--brand)}
+.prog.warning>span{background:var(--warning)}
+.prog.destructive>span{background:var(--destructive)}
+.prog.success>span{background:var(--success)}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-card)}
+.alert-critical{margin-bottom:2rem;border:1px solid rgba(210,58,43,.3);background:rgba(210,58,43,.05);border-radius:16px;padding:1.25rem;display:flex;gap:1rem;align-items:flex-start}
+.alert-critical .icon{flex-shrink:0;width:40px;height:40px;border-radius:9999px;background:rgba(210,58,43,.15);color:var(--destructive);display:flex;align-items:center;justify-content:center;font-weight:700}
+.alert-critical h3{margin:0;font-size:1rem;font-weight:600}
+.alert-critical p{margin:.5rem 0 0;font-size:14px;color:var(--muted-foreground)}
+
+ol.list,ul.list{list-style:none;margin:0;padding:0}
+.critical-item{margin-bottom:1rem;overflow:hidden;border:1px solid var(--border);background:var(--card);border-radius:16px;box-shadow:var(--shadow-card)}
+.critical-head{display:flex;flex-direction:column;gap:.25rem;border-bottom:1px solid var(--border);background:rgba(238,244,246,.5);padding:1rem 1.25rem}
+@media(min-width:640px){.critical-head{flex-direction:row;align-items:center;justify-content:space-between}}
+.critical-head .row{display:flex;align-items:center;gap:.75rem}
+.id-mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;color:var(--muted-foreground)}
+.critical-head h3{margin:0;font-size:1rem;font-weight:600}
+.critical-body{padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
+.critical-body p{margin:0;font-size:14px;line-height:1.6;color:var(--muted-foreground)}
+.tag-row{display:flex;flex-wrap:wrap;gap:.5rem}
+.action-box{border-radius:12px;background:var(--brand-soft);padding:.75rem 1rem;font-size:14px;color:var(--brand-deep)}
+.action-box .label{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(10,91,102,.7)}
+.action-box p{margin:.25rem 0 0;color:var(--brand-deep)}
+
+/* phase cards grid */
+.grid{display:grid;gap:1rem}
+.grid.cols-2{grid-template-columns:1fr}
+.grid.cols-3{grid-template-columns:1fr}
+.grid.cols-4{grid-template-columns:1fr}
+@media(min-width:640px){.grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.grid.cols-3{grid-template-columns:repeat(3,1fr)}.grid.cols-4{grid-template-columns:repeat(4,1fr)}}
+.phase{padding:1.25rem}
+.phase .pname{font-size:12px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:var(--muted-foreground);margin:0}
+.phase .pval{margin:.5rem 0;font-size:1.875rem;font-weight:600;font-variant-numeric:tabular-nums}
+.phase .pnote{margin:.75rem 0 0;font-size:12px;color:var(--muted-foreground)}
+
+/* schedule table */
+.sched{overflow:hidden;border:1px solid var(--border);background:var(--card);border-radius:16px;box-shadow:var(--shadow-card);margin-top:2rem}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead{background:rgba(238,244,246,.6);color:var(--muted-foreground);font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+th{padding:.75rem 1rem;text-align:left;font-weight:500}
+td{padding:.75rem 1rem;border-top:1px solid rgba(227,234,238,.7)}
+.group-row td{background:rgba(230,244,246,.6);font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--brand-deep);padding:.5rem 1rem}
+.row-item{font-weight:500}
+.muted{color:var(--muted-foreground)}
+.tab-num{font-variant-numeric:tabular-nums}
+.bar-cell{display:flex;align-items:center;gap:.75rem}
+.bar-cell .pct{width:36px;text-align:right;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.bar-cell .prog{width:110px}
+.sched-mobile{display:none}
+@media(max-width:767px){
+  .sched table{display:none}
+  .sched-mobile{display:block}
+}
+.smcard{padding:.75rem 1rem;border-top:1px solid var(--border)}
+.smcard:first-child{border-top:0}
+.smgroup{background:rgba(230,244,246,.6);padding:.5rem 1rem;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--brand-deep);border-top:1px solid var(--border)}
+
+/* ambiente cards */
+.amb{padding:1.25rem;display:flex;flex-direction:column;transition:.2s}
+.amb:hover{transform:translateY(-2px);box-shadow:0 8px 20px -10px rgba(0,0,0,.1)}
+.amb-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem}
+.amb-top h3{margin:0;font-size:1rem;font-weight:600}
+.amb-meta{margin:2px 0 0;font-size:12px;color:var(--muted-foreground)}
+.amb-pct{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--brand-deep)}
+.amb ul{list-style:none;margin:1rem 0 0;padding:0;display:flex;flex-direction:column;gap:.5rem}
+.amb li{display:flex;gap:.5rem;font-size:14px;color:var(--muted-foreground)}
+.amb li::before{content:"";flex-shrink:0;width:4px;height:4px;border-radius:50%;background:var(--brand);margin-top:8px}
+
+/* extra */
+.extra{padding:1.25rem}
+.extra-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.extra h3{margin:.5rem 0 0;font-size:1rem;font-weight:600}
+.extra p{margin:.5rem 0 0;font-size:14px;line-height:1.6;color:var(--muted-foreground)}
+.note-box{margin-top:1.5rem;border:1px solid rgba(12,138,154,.3);background:var(--brand-soft);padding:1.25rem;border-radius:16px;font-size:14px;color:var(--brand-deep)}
+.note-box .label{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(10,91,102,.7)}
+.note-box p{margin:.25rem 0 0}
+
+/* pendencias */
+.pend-list{overflow:hidden;border:1px solid var(--border);background:var(--card);border-radius:16px;box-shadow:var(--shadow-card)}
+.pend{display:grid;gap:.75rem;padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.pend:first-child{border-top:0}
+@media(min-width:640px){.pend{grid-template-columns:auto 1fr auto;align-items:center}}
+.pend .id{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;color:var(--muted-foreground)}
+.pend .t{font-size:14px;font-weight:600}
+.pend .d{margin:.25rem 0 .25rem;font-size:14px;color:var(--muted-foreground)}
+.pend .a{font-size:12px;color:var(--brand-deep)}
+.pend .sticker{justify-self:start}
+@media(min-width:640px){.pend .sticker{justify-self:end}}
+
+/* plano */
+.action-card{display:flex;flex-direction:column;gap:.75rem;padding:1.25rem}
+.action-card-top{display:flex;justify-content:space-between;align-items:center}
+.action-card h3{margin:0;font-size:1rem;font-weight:600}
+.action-card p{margin:0;font-size:14px;line-height:1.6;color:var(--muted-foreground)}
+.action-card .footer{margin-top:auto;padding-top:.75rem;border-top:1px solid var(--border);font-size:12px;font-weight:500;color:var(--brand-deep)}
+
+/* ata */
+.ata{padding:1.5rem;margin-bottom:1rem}
+.ata-head{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem}
+.ata-head .badge{width:28px;height:28px;border-radius:50%;background:var(--brand);color:var(--brand-foreground);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.ata h3{margin:.75rem 0 0;font-size:1.125rem;font-weight:600}
+.ata p{margin:.5rem 0 0;font-size:14px;line-height:1.6;color:var(--muted-foreground)}
+.ata .dec{margin-top:1rem;border-left:2px solid var(--brand);background:rgba(230,244,246,.6);padding:.75rem 1rem;border-radius:12px;font-size:14px;color:var(--brand-deep)}
+.ata .dec .label{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(10,91,102,.7)}
+.ata .dec p{margin:.25rem 0 0;color:var(--brand-deep)}
+
+/* delib */
+.delib{display:flex;align-items:flex-start;gap:.75rem;padding:.75rem 1rem;border:1px solid var(--border);background:var(--card);border-radius:12px;box-shadow:var(--shadow-card);margin-bottom:.5rem}
+.delib .mark{flex-shrink:0;margin-top:2px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.delib .mark.crit{background:var(--destructive);color:#fff}
+.delib .mark.go{background:var(--brand);color:#fff}
+.delib .mark.open{background:var(--muted);color:var(--foreground)}
+.delib .body{flex:1;display:flex;flex-direction:column;gap:.25rem}
+@media(min-width:640px){.delib .body{flex-direction:row;justify-content:space-between;gap:1.5rem;align-items:flex-start}}
+.delib .text{font-size:14px;margin:0}
+.delib .meta{font-size:12px;font-weight:500;color:var(--brand-deep);flex-shrink:0;margin:0}
+@media(min-width:640px){.delib .meta{text-align:right}}
+
+/* footer */
+footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin-top:0}
+.foot{padding:2rem 0;font-size:12px;color:var(--muted-foreground);display:flex;flex-direction:column;gap:.5rem}
+@media(min-width:640px){.foot{flex-direction:row;align-items:center;justify-content:space-between}}
+.foot p{margin:0}
+</style>
+</head>
+<body>
+{% macro txt(value, fallback='Não informado') -%}
+  {%- if value is defined and value is not none and value|string|trim != '' -%}{{ value }}{%- else -%}{{ fallback }}{%- endif -%}
+{%- endmacro %}
+
+{% macro pct(value) -%}
+  {%- if value is defined and value is not none and value|string|trim != '' -%}{{ value }}%{%- else -%}Não informado{%- endif -%}
+{%- endmacro %}
+
+{% macro level_tone(value) -%}
+  {%- set v = (value|default('', true)|string|lower|trim) -%}
+  {%- if v in ['critico','crítico','critica','crítica','urgente'] -%}critico
+  {%- elif v in ['alto','alta','alta · norma'] -%}alto
+  {%- elif v in ['moderado','moderada','medio','médio','media','média'] -%}moderado
+  {%- elif v in ['baixo','baixa','ok','concluido','concluído'] -%}ok
+  {%- else -%}neutral{%- endif -%}
+{%- endmacro %}
+
+{% macro status_tone(value) -%}
+  {%- set v = (value|default('', true)|string|lower|trim) -%}
+  {%- if v in ['concluido','concluído'] -%}ok
+  {%- elif v in ['atrasado','atrasada','bloqueado','bloqueada','bloqueante'] -%}critico
+  {%- elif v in ['nao-iniciado','não iniciado','nao iniciado'] -%}alto
+  {%- elif v in ['andamento','em andamento'] -%}brand
+  {%- else -%}neutral{%- endif -%}
+{%- endmacro %}
+
+{% macro progress_tone(value) -%}
+  {%- set v = value|default(0, true)|float -%}
+  {%- if v >= 90 -%}success
+  {%- elif v >= 60 -%}brand
+  {%- elif v >= 30 -%}warning
+  {%- else -%}destructive{%- endif -%}
+{%- endmacro %}
+
+{% macro sticker(tone, label) -%}
+  <span class="sticker {{ tone }}">{{ txt(label, 'Não informado') }}</span>
+{%- endmacro %}
+
+{% macro progress_bar(value) -%}
+  {%- set p = value|default(0, true)|float -%}
+  <div class="prog {{ progress_tone(p) }}"><span style="width:{{ [0, [100, p]|min]|max }}%"></span></div>
+{%- endmacro %}
+
+<header class="hero">
+  <div class="container hero-inner">
+    <div class="hero-top">
+      <div class="brand">
+        <img src="data:image/png;base64,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xA6BCE5ukEb7N61d0/bVqYxPCOlYROXja1a1fgn7VYx8IlARqqbFjflX3nZrX59fig177MCIYHvicxMXVvWrkc+31ejrcNUoXYtfwjW/frpc9573Tukl/5OJjX7tFS8mE4H50PfvKJ88o+40cL2KOMd5L1cTdi4urBretbMs/8AlfbW0UVz09YW1q50TrEgI6UlrBe4f3NOaHipWhTicQYwNRLfrwtUQI+XYOYhpvGLeySbvN5xMBPDmn/y4+pJP2cS5t9W3fru1g1PrPsNueU+bI4RUEfG59wf3tKYCi4ViY428JmeHGREbhzXbtrXmRe2XPeR4HnFoLRbhjfUHrxpaPGWTBsRoOJbQcvFEPSM7OHF7xcdOPrVcctafTekkEHE+/o7NPzeqb5AQHia1FkHd+8orffXvao0Q41694Y2tKJ47a04ZWjC/nDFnbpUwxrmReO1ixYCYLLmfz3nFBnRkBfKYSSSiePqMt5WFs2dVGznHaxGLwsYhvKmMX/zMQdTL70u8n3FhSnzFtGjnz5xdFs9fUOYce0zVIyGj39OYN9S9ns17w7xvfv0PR/o/kv4Rh1DDwuNntFbkHjH/mGNbG5RyYCO7b//Lr30vZtPft39/eWjv80fURiE2pie/5egy9+i3ljnTp7/259OnHdWKZTkQ/sf37Hntey++vL81ZddTv3vROaI+M/J+Tp82rZx2wozXPbmFM2e+dlh1194Xyo4X9r72vZH3NCLtYqbDYq0QApDZWrdPAJCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkFcp5f8BQvoMYsi5vbAAAAAASUVORK5CYII=" alt="TOOLS" />
+        <div>
+          <div class="eyebrow">TOOLS · Gerenciamento e Engenharia</div>
+          <div class="sub">{{ txt(meta.get('project')) }}</div>
+        </div>
+      </div>
+      <div class="pills">
+        <span class="pill">{{ txt(meta.get('week'), 'Semana não informada') }}</span>
+        {% for pill in hero.get('pills', []) %}
+          {% if pill is mapping %}
+            <span class="pill {{ pill.get('tone', '') }}">{{ txt(pill.get('label') or pill.get('text')) }}</span>
+          {% else %}
+            <span class="pill">{{ txt(pill) }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <h1 class="h1">{{ txt(meta.get('title'), 'Relatório Semanal de Obra') }}</h1>
+    {% if hero.get('headline') %}
+      <p class="meta-line"><strong>{{ hero.get('headline') }}</strong>{% if hero.get('subheadline') %} · {{ hero.get('subheadline') }}{% endif %}</p>
+    {% else %}
+      <p class="meta-line">{{ txt(meta.get('rev'), 'REV.') }} · Referência {{ txt(meta.get('refDate')) }} · {{ txt(meta.get('project')) }} · Atualização executiva consolidada</p>
+    {% endif %}
+    <dl class="stats">
+      <div class="stat"><div class="label">Data de referência</div><div class="value">{{ txt(meta.get('refDate')) }}</div></div>
+      <div class="stat"><div class="label">Engenheiro</div><div class="value">{{ txt(meta.get('engineer')) }}</div></div>
+      <div class="stat"><div class="label">Prazo contratual</div><div class="value">{{ txt(meta.get('contractDeadline')) }}</div></div>
+      <div class="stat high"><div class="label">Dias úteis restantes</div><div class="value">{{ txt(meta.get('workingDaysLeft'), 'Não calculável') }}</div></div>
+      <div class="stat high"><div class="label">Avanço global</div><div class="value">{{ pct(meta.get('globalProgress')) }}</div></div>
+      <div class="stat"><div class="label">Fechamento</div><div class="value">{{ txt(meta.get('weeklyClosing')) }}</div></div>
+    </dl>
+  </div>
+</header>
+
+{% set tabs = [
+  {'id':'criticos','label':'Pontos Críticos'},
+  {'id':'cronograma','label':'Cronograma'},
+  {'id':'ambientes','label':'Ambientes'},
+  {'id':'extra','label':'Extra-Escopo'},
+  {'id':'pendencias','label':'Pendências'},
+  {'id':'plano','label':'Plano de Ação'},
+  {'id':'ata','label':'Ata'},
+  {'id':'deliberacoes','label':'Deliberações'}
+] %}
+<nav class="nav">
+  <div class="container">
+    <div class="nav-scroll" id="nav-tabs">
+      {% for tab in tabs %}<button class="tab{% if loop.first %} active{% endif %}" data-id="{{ tab.id }}">{{ tab.label }}</button>{% endfor %}
+    </div>
+  </div>
+</nav>
+
+<main class="container">
+  <section id="criticos">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">01</div>
+        <div>
+          <p class="sect-eyebrow">Análise Executiva</p>
+          <h2 class="sect-title">Pontos Críticos para Conclusão da Obra</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Diagnóstico direto dos fatores que determinam a viabilidade da entrega. Ordenados por nível de criticidade.</p>
+    </div>
+    {% if critical_alert.get('title') or critical_alert.get('body') %}
+    <div class="alert-critical">
+      <div class="icon">!</div>
+      <div>
+        <h3>{{ txt(critical_alert.get('title'), 'Alerta crítico') }}</h3>
+        <p>{{ txt(critical_alert.get('body')) }}</p>
+      </div>
+    </div>
+    {% endif %}
+    <ol class="list">
+      {% set critical_points = report.get('criticalPoints', []) %}
+      {% if critical_points %}
+        {% for p in critical_points %}
+        <li class="critical-item">
+          <div class="critical-head">
+            <div class="row"><span class="id-mono">{{ txt(p.get('id'), '%02d'|format(loop.index)) }}</span><h3>{{ txt(p.get('title')) }}</h3></div>
+            {{ sticker(level_tone(p.get('level')), 'Nível ' ~ txt(p.get('level'), 'não informado')) }}
+          </div>
+          <div class="critical-body">
+            <p>{{ txt(p.get('body')) }}</p>
+            {% if p.get('tags') %}
+            <div class="tag-row">{% for tag in p.get('tags', []) %}{{ sticker('', tag) }}{% endfor %}</div>
+            {% endif %}
+            <div class="action-box"><div class="label">Ação obrigatória</div><p>{{ txt(p.get('action')) }}</p></div>
+          </div>
+        </li>
+        {% endfor %}
+      {% else %}
+        <li class="critical-item"><div class="critical-body"><p>Nenhum ponto crítico registrado.</p></div></li>
+      {% endif %}
+    </ol>
+  </section>
+
+  <section id="cronograma">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">02</div>
+        <div>
+          <p class="sect-eyebrow">Status do Cronograma</p>
+          <h2 class="sect-title">Cronograma Executivo</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Leitura consolidada de frentes, responsáveis, prazos, avanço e status executivo.</p>
+    </div>
+    <div class="grid cols-4">
+      {% set phases = report.get('phases', []) %}
+      {% if phases %}
+        {% for phase in phases %}
+        <div class="card phase">
+          <p class="pname">{{ txt(phase.get('name')) }}</p>
+          <p class="pval">{{ pct(phase.get('progress')) }}</p>
+          {{ progress_bar(phase.get('progress')) }}
+          <p class="pnote">{{ txt(phase.get('note'), '') }}</p>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="card phase"><p class="pname">Resumo</p><p class="pval">Não informado</p><p class="pnote">Nenhum resumo de fase registrado.</p></div>
+      {% endif %}
+    </div>
+    <div class="sched">
+      <table>
+        <thead><tr><th>Frente</th><th>Resp.</th><th>Início</th><th>Término</th><th>Avanço</th><th>Status</th></tr></thead>
+        <tbody>
+          {% set schedule = report.get('schedule', []) %}
+          {% if schedule %}
+            {% for group in schedule %}
+              <tr class="group-row"><td colspan="6">{{ txt(group.get('group'), 'Grupo não informado') }}</td></tr>
+              {% for row in group.get('rows', []) %}
+              <tr>
+                <td class="row-item">{{ txt(row.get('item')) }}</td>
+                <td class="muted">{{ txt(row.get('resp')) }}</td>
+                <td class="muted tab-num">{{ txt(row.get('start')) }}</td>
+                <td class="muted tab-num">{{ txt(row.get('end')) }}</td>
+                <td><div class="bar-cell"><span class="pct">{{ pct(row.get('progress')) }}</span>{{ progress_bar(row.get('progress')) }}</div></td>
+                <td>{{ sticker(status_tone(row.get('status')), txt(row.get('statusLabel'), row.get('status') or 'Status')) }}</td>
+              </tr>
+              {% endfor %}
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="6" class="muted">Nenhum item de cronograma registrado.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+      <div class="sched-mobile">
+        {% if schedule %}
+          {% for group in schedule %}
+            <div class="smgroup">{{ txt(group.get('group'), 'Grupo não informado') }}</div>
+            {% for row in group.get('rows', []) %}
+            <div class="smcard">
+              <div style="display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start">
+                <p style="margin:0;font-size:14px;font-weight:500">{{ txt(row.get('item')) }}</p>
+                {{ sticker(status_tone(row.get('status')), txt(row.get('statusLabel'), row.get('status') or 'Status')) }}
+              </div>
+              <div style="display:flex;gap:.5rem;font-size:12px;color:var(--muted-foreground);margin:.5rem 0">
+                <span>{{ txt(row.get('resp')) }}</span><span>·</span><span class="tab-num">{{ txt(row.get('start')) }} → {{ txt(row.get('end')) }}</span>
+              </div>
+              <div style="display:flex;gap:.75rem;align-items:center">{{ progress_bar(row.get('progress')) }}<span style="width:36px;text-align:right;font-size:12px;font-weight:600" class="tab-num">{{ pct(row.get('progress')) }}</span></div>
+            </div>
+            {% endfor %}
+          {% endfor %}
+        {% else %}
+          <div class="smcard">Nenhum item de cronograma registrado.</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section id="ambientes">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">03</div>
+        <div>
+          <p class="sect-eyebrow">Leitura por Frente</p>
+          <h2 class="sect-title">Status por Ambiente</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Situação atual de cada frente com avanço, dependências e próximos passos.</p>
+    </div>
+    <div class="grid cols-3">
+      {% set ambientes = report.get('ambientes', []) %}
+      {% if ambientes %}
+        {% for a in ambientes %}
+        <article class="card amb">
+          <div class="amb-top">
+            <div><h3>{{ txt(a.get('name')) }}</h3><p class="amb-meta">{{ txt(a.get('meta'), '') }}</p></div>
+            <span class="amb-pct">{{ pct(a.get('progress')) }}</span>
+          </div>
+          <div style="margin-top:.75rem">{{ progress_bar(a.get('progress')) }}</div>
+          <ul>{% for b in a.get('bullets', []) %}<li><span>{{ b }}</span></li>{% else %}<li><span>Nenhum detalhe registrado.</span></li>{% endfor %}</ul>
+        </article>
+        {% endfor %}
+      {% else %}
+        <article class="card amb"><div class="amb-top"><div><h3>Nenhum ambiente registrado</h3><p class="amb-meta">Sem dados para esta seção.</p></div></div></article>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="extra">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">04</div>
+        <div>
+          <p class="sect-eyebrow">Extra-Escopo Executado</p>
+          <h2 class="sect-title">Atividades Fora do Check-list</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Intervenções técnicas identificadas em campo ou registradas em ata.</p>
+    </div>
+    <div class="grid cols-2">
+      {% set extras = report.get('extraEscopo', []) %}
+      {% if extras %}
+        {% for e in extras %}
+        <div class="card extra">
+          <div class="extra-head"><span class="id-mono" style="color:var(--brand-deep)">{{ txt(e.get('id'), '%02d'|format(loop.index)) }}</span>{{ sticker('moderado', 'Extra-Escopo') }}</div>
+          <h3>{{ txt(e.get('title')) }}</h3>
+          <p>{{ txt(e.get('body')) }}</p>
+          {% if e.get('tags') %}<div class="tag-row" style="margin-top:1rem">{% for tag in e.get('tags', []) %}{{ sticker('', tag) }}{% endfor %}</div>{% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="card extra"><h3>Nenhum extra-escopo registrado</h3><p>Não foram identificadas atividades fora do check-list nesta semana.</p></div>
+      {% endif %}
+    </div>
+    {% if report.get('extraEscopoNote') %}
+    <div class="note-box"><div class="label">Observação contratual</div><p>{{ report.get('extraEscopoNote') }}</p></div>
+    {% endif %}
+  </section>
+
+  <section id="pendencias">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">05</div>
+        <div>
+          <p class="sect-eyebrow">Definições Pendentes</p>
+          <h2 class="sect-title">Pendências TOOLS</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Decisões, entregas e liberações pendentes que exigem acompanhamento.</p>
+    </div>
+    <div class="pend-list">
+      {% set pendencias = report.get('pendenciasTools', []) %}
+      {% if pendencias %}
+        {% for p in pendencias %}
+        <div class="pend">
+          <span class="id">{{ txt(p.get('id'), '%02d'|format(loop.index)) }}</span>
+          <div>
+            <p class="t" style="margin:0">{{ txt(p.get('title')) }}</p>
+            <p class="d">{{ txt(p.get('desc')) }}</p>
+            <p class="a" style="margin:0">{{ txt(p.get('area'), '') }}</p>
+          </div>
+          {{ sticker(level_tone(p.get('level')), txt(p.get('level'), 'Não informado')) }}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="pend"><div><p class="t" style="margin:0">Nenhuma pendência registrada</p><p class="d">Não há pendências consolidadas para esta semana.</p></div></div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="plano">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">06</div>
+        <div>
+          <p class="sect-eyebrow">Plano de Ação Semanal</p>
+          <h2 class="sect-title">Foco Operacional</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Ações comprometidas com responsável e prazo para a próxima semana.</p>
+    </div>
+    <div class="grid cols-2">
+      {% set plano = report.get('planoAcao', []) %}
+      {% if plano %}
+        {% for a in plano %}
+        <div class="card action-card">
+          <div class="action-card-top"><span class="id-mono" style="color:var(--brand-deep)">{{ txt(a.get('id'), '%02d'|format(loop.index)) }}</span>{{ sticker(level_tone(a.get('level')), txt(a.get('level'), 'Não informado')) }}</div>
+          <h3>{{ txt(a.get('title')) }}</h3>
+          <p>{{ txt(a.get('body')) }}</p>
+          <p class="footer">{{ txt(a.get('meta')) }}</p>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="card action-card"><h3>Nenhuma ação registrada</h3><p>Não há plano de ação consolidado para esta semana.</p></div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="ata">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">07</div>
+        <div>
+          <p class="sect-eyebrow">Ata de Reunião</p>
+          <h2 class="sect-title">Registro Formal das Deliberações</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Resumo dos registros formais identificados na ata semanal.</p>
+    </div>
+    <div>
+      {% set atas = report.get('ata', []) %}
+      {% if atas %}
+        {% for i in atas %}
+        <article class="card ata">
+          <div class="ata-head"><span class="badge">{{ txt(i.get('id'), loop.index) }}</span>{{ sticker('moderado', txt(i.get('tag'), 'Registro')) }}</div>
+          <h3>{{ txt(i.get('title')) }}</h3>
+          <p>{{ txt(i.get('body')) }}</p>
+          {% if i.get('decision') %}<div class="dec"><div class="label">Decisão</div><p>{{ i.get('decision') }}</p></div>{% endif %}
+        </article>
+        {% endfor %}
+      {% else %}
+        <article class="card ata"><h3>Nenhum registro de ata consolidado</h3><p>Não foram identificadas deliberações formais nesta semana.</p></article>
+      {% endif %}
+    </div>
+  </section>
+
+  <section id="deliberacoes">
+    <div class="sect-header">
+      <div class="sect-title-wrap">
+        <div class="sect-num">08</div>
+        <div>
+          <p class="sect-eyebrow">Síntese Executiva</p>
+          <h2 class="sect-title">Deliberações Consolidadas</h2>
+        </div>
+      </div>
+      <p class="sect-desc">Visão executiva ordenada por criticidade. ! Crítico · → Em andamento · ○ Aberto</p>
+    </div>
+    <ul class="list">
+      {% set delibs = report.get('deliberacoes', []) %}
+      {% if delibs %}
+        {% for d in delibs %}
+        {% set mark = d.get('mark', '○') %}
+        <li class="delib">
+          <span class="mark {% if mark == '!' %}crit{% elif mark in ['→','✓'] %}go{% else %}open{% endif %}">{{ mark }}</span>
+          <div class="body"><p class="text">{{ txt(d.get('text')) }}</p><p class="meta">{{ txt(d.get('meta')) }}</p></div>
+        </li>
+        {% endfor %}
+      {% else %}
+        <li class="delib"><span class="mark open">○</span><div class="body"><p class="text">Nenhuma deliberação consolidada.</p><p class="meta">Não informado</p></div></li>
+      {% endif %}
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div class="container foot">
+    <p>TOOLS · Gerenciamento e Engenharia · Relatório {{ txt(meta.get('project')) }} {{ txt(meta.get('rev'), '') }} · {{ txt(meta.get('refDate')) }}</p>
+    <p>Fechamento semanal toda quinta-feira · Envio ao cliente na sexta</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const tabs = Array.from(document.querySelectorAll('#nav-tabs .tab'));
+  function setActive(id){ tabs.forEach(b => b.classList.toggle('active', b.dataset.id === id)); }
+  document.getElementById('nav-tabs')?.addEventListener('click', (e) => {
+    const b = e.target.closest('.tab'); if(!b) return;
+    const el = document.getElementById(b.dataset.id); if(!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top, behavior: 'smooth' });
+  });
+  const io = new IntersectionObserver(entries => {
+    const visible = entries.filter(e => e.isIntersecting).sort((a,b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if(visible) setActive(visible.target.id);
+  }, { rootMargin: '-30% 0px -55% 0px', threshold: [0,.25,.5,.75,1] });
+  tabs.forEach(t => { const el = document.getElementById(t.dataset.id); if(el) io.observe(el); });
+})();
+</script>
+</body>
+</html>

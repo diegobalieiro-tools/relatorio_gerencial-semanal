@@ -1,0 +1,31 @@
+TOOLS
+Gerenciadora
+Cliente
+Construtora
+Projetista
+Fornecedor
+Ata de reunião
+Cronograma
+Linha de base
+Reprogramação
+Curva S
+RDO
+ART
+Avanço físico
+Pendência
+Bloqueante
+Plano de ação
+Deliberação
+Extra-escopo
+Demolição
+Contrapiso
+Telhado
+Calha
+Fachada
+Marcenaria
+Instalações elétricas
+Instalações hidráulicas
+Tubulações
+Descupinização
+Dedetização
+Teste de estanqueidade
