@@ -3,12 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-{% set report = report or {} %}
-{% set meta = report.get('meta', {}) %}
-{% set hero = report.get('hero', {}) %}
-{% set critical_alert = report.get('criticalAlert', {}) %}
-<title>Relatório Semanal · {{ meta.get('project') or 'Obra' }} · TOOLS</title>
-<meta name="description" content="Relatório semanal de obra {{ meta.get('project') or '' }} — análise executiva, cronograma, ambientes, plano de ação e ata de reunião." />
+<title>Relatório Semanal · CCSP Casa 7 · TOOLS</title>
+<meta name="description" content="Relatório semanal de obra CCSP Casa 7 — análise executiva, cronograma, ambientes, plano de ação e ata de reunião." />
 <style>
 :root{
   --brand:#0c8a9a;
@@ -233,48 +229,6 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
 </style>
 </head>
 <body>
-{% macro txt(value, fallback='Não informado') -%}
-  {%- if value is defined and value is not none and value|string|trim != '' -%}{{ value }}{%- else -%}{{ fallback }}{%- endif -%}
-{%- endmacro %}
-
-{% macro pct(value) -%}
-  {%- if value is defined and value is not none and value|string|trim != '' -%}{{ value }}%{%- else -%}Não informado{%- endif -%}
-{%- endmacro %}
-
-{% macro level_tone(value) -%}
-  {%- set v = (value|default('', true)|string|lower|trim) -%}
-  {%- if v in ['critico','crítico','critica','crítica','urgente'] -%}critico
-  {%- elif v in ['alto','alta','alta · norma'] -%}alto
-  {%- elif v in ['moderado','moderada','medio','médio','media','média'] -%}moderado
-  {%- elif v in ['baixo','baixa','ok','concluido','concluído'] -%}ok
-  {%- else -%}neutral{%- endif -%}
-{%- endmacro %}
-
-{% macro status_tone(value) -%}
-  {%- set v = (value|default('', true)|string|lower|trim) -%}
-  {%- if v in ['concluido','concluído'] -%}ok
-  {%- elif v in ['atrasado','atrasada','bloqueado','bloqueada','bloqueante'] -%}critico
-  {%- elif v in ['nao-iniciado','não iniciado','nao iniciado'] -%}alto
-  {%- elif v in ['andamento','em andamento'] -%}brand
-  {%- else -%}neutral{%- endif -%}
-{%- endmacro %}
-
-{% macro progress_tone(value) -%}
-  {%- set v = value|default(0, true)|float -%}
-  {%- if v >= 90 -%}success
-  {%- elif v >= 60 -%}brand
-  {%- elif v >= 30 -%}warning
-  {%- else -%}destructive{%- endif -%}
-{%- endmacro %}
-
-{% macro sticker(tone, label) -%}
-  <span class="sticker {{ tone }}">{{ txt(label, 'Não informado') }}</span>
-{%- endmacro %}
-
-{% macro progress_bar(value) -%}
-  {%- set p = value|default(0, true)|float -%}
-  <div class="prog {{ progress_tone(p) }}"><span style="width:{{ [0, [100, p]|min]|max }}%"></span></div>
-{%- endmacro %}
 
 <header class="hero">
   <div class="container hero-inner">
@@ -283,52 +237,24 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
         <img src="data:image/png;base64,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xA6BCE5ukEb7N61d0/bVqYxPCOlYROXja1a1fgn7VYx8IlARqqbFjflX3nZrX59fig177MCIYHvicxMXVvWrkc+31ejrcNUoXYtfwjW/frpc9573Tukl/5OJjX7tFS8mE4H50PfvKJ88o+40cL2KOMd5L1cTdi4urBretbMs/8AlfbW0UVz09YW1q50TrEgI6UlrBe4f3NOaHipWhTicQYwNRLfrwtUQI+XYOYhpvGLeySbvN5xMBPDmn/y4+pJP2cS5t9W3fru1g1PrPsNueU+bI4RUEfG59wf3tKYCi4ViY428JmeHGREbhzXbtrXmRe2XPeR4HnFoLRbhjfUHrxpaPGWTBsRoOJbQcvFEPSM7OHF7xcdOPrVcctafTekkEHE+/o7NPzeqb5AQHia1FkHd+8orffXvao0Q41694Y2tKJ47a04ZWjC/nDFnbpUwxrmReO1ixYCYLLmfz3nFBnRkBfKYSSSiePqMt5WFs2dVGznHaxGLwsYhvKmMX/zMQdTL70u8n3FhSnzFtGjnz5xdFs9fUOYce0zVIyGj39OYN9S9ns17w7xvfv0PR/o/kv4Rh1DDwuNntFbkHjH/mGNbG5RyYCO7b//Lr30vZtPft39/eWjv80fURiE2pie/5egy9+i3ljnTp7/259OnHdWKZTkQ/sf37Hntey++vL81ZddTv3vROaI+M/J+Tp82rZx2wozXPbmFM2e+dlh1194Xyo4X9r72vZH3NCLtYqbDYq0QApDZWrdPAJCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkJoQApCaEAKQmhACkFcp5f8BQvoMYsi5vbAAAAAASUVORK5CYII=" alt="TOOLS" />
         <div>
           <div class="eyebrow">TOOLS · Gerenciamento e Engenharia</div>
-          <div class="sub">{{ txt(meta.get('project')) }}</div>
+          <div class="sub" id="h-project"></div>
         </div>
       </div>
       <div class="pills">
-        <span class="pill">{{ txt(meta.get('week'), 'Semana não informada') }}</span>
-        {% for pill in hero.get('pills', []) %}
-          {% if pill is mapping %}
-            <span class="pill {{ pill.get('tone', '') }}">{{ txt(pill.get('label') or pill.get('text')) }}</span>
-          {% else %}
-            <span class="pill">{{ txt(pill) }}</span>
-          {% endif %}
-        {% endfor %}
+        <span class="pill" id="h-week"></span>
+        <span class="pill warn">Múltiplas frentes em atraso</span>
+        <span class="pill crit">Pintura — decisão até 04/05</span>
       </div>
     </div>
-    <h1 class="h1">{{ txt(meta.get('title'), 'Relatório Semanal de Obra') }}</h1>
-    {% if hero.get('headline') %}
-      <p class="meta-line"><strong>{{ hero.get('headline') }}</strong>{% if hero.get('subheadline') %} · {{ hero.get('subheadline') }}{% endif %}</p>
-    {% else %}
-      <p class="meta-line">{{ txt(meta.get('rev'), 'REV.') }} · Referência {{ txt(meta.get('refDate')) }} · {{ txt(meta.get('project')) }} · Atualização executiva consolidada</p>
-    {% endif %}
-    <dl class="stats">
-      <div class="stat"><div class="label">Data de referência</div><div class="value">{{ txt(meta.get('refDate')) }}</div></div>
-      <div class="stat"><div class="label">Engenheiro</div><div class="value">{{ txt(meta.get('engineer')) }}</div></div>
-      <div class="stat"><div class="label">Prazo contratual</div><div class="value">{{ txt(meta.get('contractDeadline')) }}</div></div>
-      <div class="stat high"><div class="label">Dias úteis restantes</div><div class="value">{{ txt(meta.get('workingDaysLeft'), 'Não calculável') }}</div></div>
-      <div class="stat high"><div class="label">Avanço global</div><div class="value">{{ pct(meta.get('globalProgress')) }}</div></div>
-      <div class="stat"><div class="label">Fechamento</div><div class="value">{{ txt(meta.get('weeklyClosing')) }}</div></div>
-    </dl>
+    <h1 class="h1" id="h-title"></h1>
+    <p class="meta-line" id="h-meta"></p>
+    <dl class="stats" id="h-stats"></dl>
   </div>
 </header>
 
-{% set tabs = [
-  {'id':'criticos','label':'Pontos Críticos'},
-  {'id':'cronograma','label':'Cronograma'},
-  {'id':'ambientes','label':'Ambientes'},
-  {'id':'extra','label':'Extra-Escopo'},
-  {'id':'pendencias','label':'Pendências'},
-  {'id':'plano','label':'Plano de Ação'},
-  {'id':'ata','label':'Ata'},
-  {'id':'deliberacoes','label':'Deliberações'}
-] %}
 <nav class="nav">
   <div class="container">
-    <div class="nav-scroll" id="nav-tabs">
-      {% for tab in tabs %}<button class="tab{% if loop.first %} active{% endif %}" data-id="{{ tab.id }}">{{ tab.label }}</button>{% endfor %}
-    </div>
+    <div class="nav-scroll" id="nav-tabs"></div>
   </div>
 </nav>
 
@@ -342,39 +268,16 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
           <h2 class="sect-title">Pontos Críticos para Conclusão da Obra</h2>
         </div>
       </div>
-      <p class="sect-desc">Diagnóstico direto dos fatores que determinam a viabilidade da entrega. Ordenados por nível de criticidade.</p>
+      <p class="sect-desc" id="criticos-desc">Diagnóstico direto dos fatores que determinam se a entrega em 22/05/2026 é viável. Ordenados por nível de criticidade.</p>
     </div>
-    {% if critical_alert.get('title') or critical_alert.get('body') %}
     <div class="alert-critical">
       <div class="icon">!</div>
       <div>
-        <h3>{{ txt(critical_alert.get('title'), 'Alerta crítico') }}</h3>
-        <p>{{ txt(critical_alert.get('body')) }}</p>
+        <h3 id="critical-alert-title">Janela de entrega comprometida — restam 21 dias úteis e 4 pacotes críticos sem início</h3>
+        <p id="critical-alert-body">Com 59% de avanço global e frentes de pintura, limpeza, garagem e área externa ainda não iniciadas, a margem para atrasos é nula. Qualquer decisão postergada a partir desta semana resulta em não conformidade de prazo em 22/05/2026.</p>
       </div>
     </div>
-    {% endif %}
-    <ol class="list">
-      {% set critical_points = report.get('criticalPoints', []) %}
-      {% if critical_points %}
-        {% for p in critical_points %}
-        <li class="critical-item">
-          <div class="critical-head">
-            <div class="row"><span class="id-mono">{{ txt(p.get('id'), '%02d'|format(loop.index)) }}</span><h3>{{ txt(p.get('title')) }}</h3></div>
-            {{ sticker(level_tone(p.get('level')), 'Nível ' ~ txt(p.get('level'), 'não informado')) }}
-          </div>
-          <div class="critical-body">
-            <p>{{ txt(p.get('body')) }}</p>
-            {% if p.get('tags') %}
-            <div class="tag-row">{% for tag in p.get('tags', []) %}{{ sticker('', tag) }}{% endfor %}</div>
-            {% endif %}
-            <div class="action-box"><div class="label">Ação obrigatória</div><p>{{ txt(p.get('action')) }}</p></div>
-          </div>
-        </li>
-        {% endfor %}
-      {% else %}
-        <li class="critical-item"><div class="critical-body"><p>Nenhum ponto crítico registrado.</p></div></li>
-      {% endif %}
-    </ol>
+    <ol class="list" id="criticos-list"></ol>
   </section>
 
   <section id="cronograma">
@@ -386,68 +289,17 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
           <h2 class="sect-title">Cronograma Executivo</h2>
         </div>
       </div>
-      <p class="sect-desc">Leitura consolidada de frentes, responsáveis, prazos, avanço e status executivo.</p>
+      <p class="sect-desc" id="cronograma-desc">Caminho crítico: pintura → limpeza → comissionamento. Frentes com baseline renegociado.</p>
     </div>
-    <div class="grid cols-4">
-      {% set phases = report.get('phases', []) %}
-      {% if phases %}
-        {% for phase in phases %}
-        <div class="card phase">
-          <p class="pname">{{ txt(phase.get('name')) }}</p>
-          <p class="pval">{{ pct(phase.get('progress')) }}</p>
-          {{ progress_bar(phase.get('progress')) }}
-          <p class="pnote">{{ txt(phase.get('note'), '') }}</p>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="card phase"><p class="pname">Resumo</p><p class="pval">Não informado</p><p class="pnote">Nenhum resumo de fase registrado.</p></div>
-      {% endif %}
-    </div>
+    <div class="grid cols-4" id="phase-grid"></div>
     <div class="sched">
-      <table>
-        <thead><tr><th>Frente</th><th>Resp.</th><th>Início</th><th>Término</th><th>Avanço</th><th>Status</th></tr></thead>
-        <tbody>
-          {% set schedule = report.get('schedule', []) %}
-          {% if schedule %}
-            {% for group in schedule %}
-              <tr class="group-row"><td colspan="6">{{ txt(group.get('group'), 'Grupo não informado') }}</td></tr>
-              {% for row in group.get('rows', []) %}
-              <tr>
-                <td class="row-item">{{ txt(row.get('item')) }}</td>
-                <td class="muted">{{ txt(row.get('resp')) }}</td>
-                <td class="muted tab-num">{{ txt(row.get('start')) }}</td>
-                <td class="muted tab-num">{{ txt(row.get('end')) }}</td>
-                <td><div class="bar-cell"><span class="pct">{{ pct(row.get('progress')) }}</span>{{ progress_bar(row.get('progress')) }}</div></td>
-                <td>{{ sticker(status_tone(row.get('status')), txt(row.get('statusLabel'), row.get('status') or 'Status')) }}</td>
-              </tr>
-              {% endfor %}
-            {% endfor %}
-          {% else %}
-            <tr><td colspan="6" class="muted">Nenhum item de cronograma registrado.</td></tr>
-          {% endif %}
-        </tbody>
+      <table id="sched-table">
+        <thead><tr>
+          <th>Frente</th><th>Resp.</th><th>Início</th><th>Término</th><th>Avanço</th><th>Status</th>
+        </tr></thead>
+        <tbody id="sched-body"></tbody>
       </table>
-      <div class="sched-mobile">
-        {% if schedule %}
-          {% for group in schedule %}
-            <div class="smgroup">{{ txt(group.get('group'), 'Grupo não informado') }}</div>
-            {% for row in group.get('rows', []) %}
-            <div class="smcard">
-              <div style="display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start">
-                <p style="margin:0;font-size:14px;font-weight:500">{{ txt(row.get('item')) }}</p>
-                {{ sticker(status_tone(row.get('status')), txt(row.get('statusLabel'), row.get('status') or 'Status')) }}
-              </div>
-              <div style="display:flex;gap:.5rem;font-size:12px;color:var(--muted-foreground);margin:.5rem 0">
-                <span>{{ txt(row.get('resp')) }}</span><span>·</span><span class="tab-num">{{ txt(row.get('start')) }} → {{ txt(row.get('end')) }}</span>
-              </div>
-              <div style="display:flex;gap:.75rem;align-items:center">{{ progress_bar(row.get('progress')) }}<span style="width:36px;text-align:right;font-size:12px;font-weight:600" class="tab-num">{{ pct(row.get('progress')) }}</span></div>
-            </div>
-            {% endfor %}
-          {% endfor %}
-        {% else %}
-          <div class="smcard">Nenhum item de cronograma registrado.</div>
-        {% endif %}
-      </div>
+      <div class="sched-mobile" id="sched-mobile"></div>
     </div>
   </section>
 
@@ -460,25 +312,9 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
           <h2 class="sect-title">Status por Ambiente</h2>
         </div>
       </div>
-      <p class="sect-desc">Situação atual de cada frente com avanço, dependências e próximos passos.</p>
+      <p class="sect-desc" id="ambientes-desc">Situação atual de cada frente com avanço, dependências e próximos passos.</p>
     </div>
-    <div class="grid cols-3">
-      {% set ambientes = report.get('ambientes', []) %}
-      {% if ambientes %}
-        {% for a in ambientes %}
-        <article class="card amb">
-          <div class="amb-top">
-            <div><h3>{{ txt(a.get('name')) }}</h3><p class="amb-meta">{{ txt(a.get('meta'), '') }}</p></div>
-            <span class="amb-pct">{{ pct(a.get('progress')) }}</span>
-          </div>
-          <div style="margin-top:.75rem">{{ progress_bar(a.get('progress')) }}</div>
-          <ul>{% for b in a.get('bullets', []) %}<li><span>{{ b }}</span></li>{% else %}<li><span>Nenhum detalhe registrado.</span></li>{% endfor %}</ul>
-        </article>
-        {% endfor %}
-      {% else %}
-        <article class="card amb"><div class="amb-top"><div><h3>Nenhum ambiente registrado</h3><p class="amb-meta">Sem dados para esta seção.</p></div></div></article>
-      {% endif %}
-    </div>
+    <div class="grid cols-3" id="amb-grid"></div>
   </section>
 
   <section id="extra">
@@ -490,26 +326,13 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
           <h2 class="sect-title">Atividades Fora do Check-list</h2>
         </div>
       </div>
-      <p class="sect-desc">Intervenções técnicas identificadas em campo ou registradas em ata.</p>
+      <p class="sect-desc" id="extra-desc">Intervenções técnicas executadas pela MIA além do escopo contratual, identificadas em campo.</p>
     </div>
-    <div class="grid cols-2">
-      {% set extras = report.get('extraEscopo', []) %}
-      {% if extras %}
-        {% for e in extras %}
-        <div class="card extra">
-          <div class="extra-head"><span class="id-mono" style="color:var(--brand-deep)">{{ txt(e.get('id'), '%02d'|format(loop.index)) }}</span>{{ sticker('moderado', 'Extra-Escopo') }}</div>
-          <h3>{{ txt(e.get('title')) }}</h3>
-          <p>{{ txt(e.get('body')) }}</p>
-          {% if e.get('tags') %}<div class="tag-row" style="margin-top:1rem">{% for tag in e.get('tags', []) %}{{ sticker('', tag) }}{% endfor %}</div>{% endif %}
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="card extra"><h3>Nenhum extra-escopo registrado</h3><p>Não foram identificadas atividades fora do check-list nesta semana.</p></div>
-      {% endif %}
+    <div class="grid cols-2" id="extra-grid"></div>
+    <div class="note-box">
+      <div class="label">Observação contratual</div>
+      <p id="extra-note">As seis atividades foram executadas sem paralisação para preservar o prazo. Documentação fotográfica arquivada. Recomenda-se consolidação formal em aditivo técnico entre MIA e TOOLS.</p>
     </div>
-    {% if report.get('extraEscopoNote') %}
-    <div class="note-box"><div class="label">Observação contratual</div><p>{{ report.get('extraEscopoNote') }}</p></div>
-    {% endif %}
   </section>
 
   <section id="pendencias">
@@ -518,29 +341,12 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
         <div class="sect-num">05</div>
         <div>
           <p class="sect-eyebrow">Definições Pendentes</p>
-          <h2 class="sect-title">Pendências TOOLS</h2>
+          <h2 class="sect-title" id="pendencias-title">Pendências TOOLS</h2>
         </div>
       </div>
-      <p class="sect-desc">Decisões, entregas e liberações pendentes que exigem acompanhamento.</p>
+      <p class="sect-desc" id="pendencias-desc">19 decisões bloqueantes que dependem da gestora ou do cliente. Tratativa recomendada na reunião de 27/04.</p>
     </div>
-    <div class="pend-list">
-      {% set pendencias = report.get('pendenciasTools', []) %}
-      {% if pendencias %}
-        {% for p in pendencias %}
-        <div class="pend">
-          <span class="id">{{ txt(p.get('id'), '%02d'|format(loop.index)) }}</span>
-          <div>
-            <p class="t" style="margin:0">{{ txt(p.get('title')) }}</p>
-            <p class="d">{{ txt(p.get('desc')) }}</p>
-            <p class="a" style="margin:0">{{ txt(p.get('area'), '') }}</p>
-          </div>
-          {{ sticker(level_tone(p.get('level')), txt(p.get('level'), 'Não informado')) }}
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="pend"><div><p class="t" style="margin:0">Nenhuma pendência registrada</p><p class="d">Não há pendências consolidadas para esta semana.</p></div></div>
-      {% endif %}
-    </div>
+    <div class="pend-list" id="pend-list"></div>
   </section>
 
   <section id="plano">
@@ -549,26 +355,12 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
         <div class="sect-num">06</div>
         <div>
           <p class="sect-eyebrow">Plano de Ação Semanal</p>
-          <h2 class="sect-title">Foco Operacional</h2>
+          <h2 class="sect-title" id="plano-title">Foco Operacional · 27/04 a 02/05</h2>
         </div>
       </div>
-      <p class="sect-desc">Ações comprometidas com responsável e prazo para a próxima semana.</p>
+      <p class="sect-desc" id="plano-desc">Ações comprometidas com responsável e prazo. Semana decisiva: pintura, elétrica e liberação de frentes.</p>
     </div>
-    <div class="grid cols-2">
-      {% set plano = report.get('planoAcao', []) %}
-      {% if plano %}
-        {% for a in plano %}
-        <div class="card action-card">
-          <div class="action-card-top"><span class="id-mono" style="color:var(--brand-deep)">{{ txt(a.get('id'), '%02d'|format(loop.index)) }}</span>{{ sticker(level_tone(a.get('level')), txt(a.get('level'), 'Não informado')) }}</div>
-          <h3>{{ txt(a.get('title')) }}</h3>
-          <p>{{ txt(a.get('body')) }}</p>
-          <p class="footer">{{ txt(a.get('meta')) }}</p>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="card action-card"><h3>Nenhuma ação registrada</h3><p>Não há plano de ação consolidado para esta semana.</p></div>
-      {% endif %}
-    </div>
+    <div class="grid cols-2" id="plano-grid"></div>
   </section>
 
   <section id="ata">
@@ -580,23 +372,9 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
           <h2 class="sect-title">Registro Formal das Deliberações</h2>
         </div>
       </div>
-      <p class="sect-desc">Resumo dos registros formais identificados na ata semanal.</p>
+      <p class="sect-desc" id="ata-desc">Reunião de 24/04/2026 com Victor e Alexandre Aguiar. Próxima: Seg 27/04 com Rafael/TOOLS.</p>
     </div>
-    <div>
-      {% set atas = report.get('ata', []) %}
-      {% if atas %}
-        {% for i in atas %}
-        <article class="card ata">
-          <div class="ata-head"><span class="badge">{{ txt(i.get('id'), loop.index) }}</span>{{ sticker('moderado', txt(i.get('tag'), 'Registro')) }}</div>
-          <h3>{{ txt(i.get('title')) }}</h3>
-          <p>{{ txt(i.get('body')) }}</p>
-          {% if i.get('decision') %}<div class="dec"><div class="label">Decisão</div><p>{{ i.get('decision') }}</p></div>{% endif %}
-        </article>
-        {% endfor %}
-      {% else %}
-        <article class="card ata"><h3>Nenhum registro de ata consolidado</h3><p>Não foram identificadas deliberações formais nesta semana.</p></article>
-      {% endif %}
-    </div>
+    <div id="ata-list"></div>
   </section>
 
   <section id="deliberacoes">
@@ -605,51 +383,263 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
         <div class="sect-num">08</div>
         <div>
           <p class="sect-eyebrow">Síntese Executiva</p>
-          <h2 class="sect-title">Deliberações Consolidadas</h2>
+          <h2 class="sect-title" id="delib-title">Deliberações Consolidadas · 27/04 — 02/05</h2>
         </div>
       </div>
-      <p class="sect-desc">Visão executiva ordenada por criticidade. ! Crítico · → Em andamento · ○ Aberto</p>
+      <p class="sect-desc" id="delib-desc">Visão executiva ordenada por criticidade. ! Crítico · → Em andamento · ○ Aberto</p>
     </div>
-    <ul class="list">
-      {% set delibs = report.get('deliberacoes', []) %}
-      {% if delibs %}
-        {% for d in delibs %}
-        {% set mark = d.get('mark', '○') %}
-        <li class="delib">
-          <span class="mark {% if mark == '!' %}crit{% elif mark in ['→','✓'] %}go{% else %}open{% endif %}">{{ mark }}</span>
-          <div class="body"><p class="text">{{ txt(d.get('text')) }}</p><p class="meta">{{ txt(d.get('meta')) }}</p></div>
-        </li>
-        {% endfor %}
-      {% else %}
-        <li class="delib"><span class="mark open">○</span><div class="body"><p class="text">Nenhuma deliberação consolidada.</p><p class="meta">Não informado</p></div></li>
-      {% endif %}
-    </ul>
+    <ul class="list" id="delib-list"></ul>
   </section>
 </main>
 
 <footer>
   <div class="container foot">
-    <p>TOOLS · Gerenciamento e Engenharia · Relatório {{ txt(meta.get('project')) }} {{ txt(meta.get('rev'), '') }} · {{ txt(meta.get('refDate')) }}</p>
-    <p>Fechamento semanal toda quinta-feira · Envio ao cliente na sexta</p>
+    <p id="foot-l"></p>
+    <p id="foot-r">Fechamento semanal toda quinta-feira · Envio ao cliente na sexta</p>
   </div>
 </footer>
 
 <script>
-(function(){
-  const tabs = Array.from(document.querySelectorAll('#nav-tabs .tab'));
-  function setActive(id){ tabs.forEach(b => b.classList.toggle('active', b.dataset.id === id)); }
-  document.getElementById('nav-tabs')?.addEventListener('click', (e) => {
-    const b = e.target.closest('.tab'); if(!b) return;
-    const el = document.getElementById(b.dataset.id); if(!el) return;
-    const top = el.getBoundingClientRect().top + window.scrollY - 96;
-    window.scrollTo({ top, behavior: 'smooth' });
+const DATA = {};
+
+const TABS = [
+  {id:"criticos",label:"Pontos Críticos"},
+  {id:"cronograma",label:"Cronograma"},
+  {id:"ambientes",label:"Ambientes"},
+  {id:"extra",label:"Extra-Escopo"},
+  {id:"pendencias",label:"Pendências"},
+  {id:"plano",label:"Plano de Ação"},
+  {id:"ata",label:"Ata"},
+  {id:"deliberacoes",label:"Deliberações"},
+];
+
+const levelToTone = {
+  "critico":"critico","crítico":"critico","critica":"critico","crítica":"critico",
+  "alto":"alto","alta":"alto","moderado":"moderado","moderada":"moderado","baixo":"ok","baixa":"ok",
+  "Crítico":"critico","Crítica":"critico","Urgente":"critico",
+  "Alta":"alto","Alta · Norma":"alto","Média":"moderado","Baixa":"ok"
+};
+
+function statusTone(s){
+  return {concluido:"ok",concluído:"ok",atrasado:"critico",atrasada:"critico",bloqueado:"critico",bloqueante:"critico","nao-iniciado":"alto","não iniciado":"alto",andamento:"brand","em andamento":"brand",planejado:"neutral",pendente:"alto"}[String(s || '').toLowerCase()] || "neutral";
+}
+function progressTone(v){
+  const n = Number(v || 0);
+  if(n>=90) return "success";
+  if(n>=60) return "brand";
+  if(n>=30) return "warning";
+  return "destructive";
+}
+const arr = v => Array.isArray(v) ? v : [];
+const val = (v,d="") => (v === null || v === undefined || v === "" ? d : v);
+const pct = v => Math.max(0, Math.min(100, Number(v || 0)));
+const esc = s => String(val(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const sticker = (tone,txt) => `<span class="sticker ${esc(tone)}">${esc(txt)}</span>`;
+const bar = (v,tone) => `<div class="prog ${tone}"><span style="width:${pct(v)}%"></span></div>`;
+const setText = (id,text) => { const el = document.getElementById(id); if(el && text !== undefined && text !== null && text !== "") el.textContent = text; };
+
+// Header
+const m = DATA.meta || {};
+const hero = DATA.hero || {};
+const sectionTexts = DATA.sectionTexts || DATA.sections || {};
+const refDate = val(m.refDate, "Não informado");
+const project = val(m.project, "Obra");
+const rev = val(m.rev, "");
+setText("h-project", project);
+setText("h-week", val(m.week, "Semana não informada"));
+setText("h-title", val(m.title, hero.headline || "Relatório Semanal de Obra"));
+const metaParts = [rev, refDate ? `Referência ${refDate}` : "", val(hero.subheadline, "Atualização executiva consolidada")].filter(Boolean);
+setText("h-meta", metaParts.join(" · "));
+const defaultPills = arr(hero.pills).length ? arr(hero.pills) : [m.week].filter(Boolean).map(label => ({label}));
+const pillsHtml = defaultPills.map((p,idx)=>{
+  const label = typeof p === 'string' ? p : p.label;
+  const tone = typeof p === 'string' ? (idx === 1 ? 'warn' : idx === 2 ? 'crit' : '') : (p.tone || p.type || '');
+  return `<span class="pill ${esc(tone)}">${esc(label)}</span>`;
+}).join("");
+if(pillsHtml) document.querySelector(".pills").innerHTML = pillsHtml;
+const stats = [
+  ["Data de referência",refDate,false],
+  ["Engenheiro",val(m.engineer,"Não informado"),false],
+  ["Prazo contratual",val(m.contractDeadline,"Não informado"),false],
+  ["Dias úteis restantes",val(m.workingDaysLeft,"Não calculável"),true],
+  ["Avanço global",m.globalProgress === null || m.globalProgress === undefined ? "Não informado" : m.globalProgress + "%",true],
+  ["Fechamento",val(m.weeklyClosing,"Não informado"),false],
+];
+document.getElementById("h-stats").innerHTML = stats.map(([l,v,h])=>
+  `<div class="stat ${h?'high':''}"><div class="label">${esc(l)}</div><div class="value">${esc(v)}</div></div>`
+).join("");
+setText("foot-l", `TOOLS · Gerenciamento e Engenharia · Relatório ${project} ${rev} · ${refDate}`);
+setText("foot-r", val(m.footerNote, "Fechamento semanal toda quinta-feira · Envio ao cliente na sexta"));
+
+// Textos auxiliares por seção
+setText("criticos-desc", sectionTexts.criticos || sectionTexts.pontosCriticos || "Diagnóstico direto dos fatores que determinam a viabilidade do prazo. Ordenados por nível de criticidade.");
+setText("cronograma-desc", sectionTexts.cronograma || "Caminho crítico e frentes com baseline renegociado.");
+setText("ambientes-desc", sectionTexts.ambientes || "Situação atual de cada frente com avanço, dependências e próximos passos.");
+setText("extra-desc", sectionTexts.extraEscopo || "Intervenções técnicas executadas além do escopo/check-list, identificadas em campo.");
+setText("pendencias-title", sectionTexts.pendenciasTitle || "Pendências TOOLS / Cliente / Projetistas / Fornecedores");
+setText("pendencias-desc", sectionTexts.pendencias || "Decisões e definições pendentes que podem impactar prazo, custo, qualidade ou liberação de frentes.");
+setText("plano-title", sectionTexts.planoTitle || "Plano de Ação Semanal");
+setText("plano-desc", sectionTexts.planoAcao || "Ações comprometidas com responsável, prioridade e prazo.");
+setText("ata-desc", sectionTexts.ata || "Registro formal das deliberações da reunião semanal.");
+setText("delib-title", sectionTexts.deliberacoesTitle || "Deliberações Consolidadas");
+setText("delib-desc", sectionTexts.deliberacoes || "Visão executiva ordenada por criticidade. ! Crítico · → Em andamento · ○ Aberto · ✓ Concluído");
+
+// Nav
+const navEl = document.getElementById("nav-tabs");
+navEl.innerHTML = TABS.map(t=>`<button class="tab" data-id="${t.id}">${esc(t.label)}</button>`).join("");
+function setActive(id){
+  navEl.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.id===id));
+}
+setActive(TABS[0].id);
+navEl.addEventListener("click",e=>{
+  const b = e.target.closest(".tab"); if(!b) return;
+  const el = document.getElementById(b.dataset.id); if(!el) return;
+  const top = el.getBoundingClientRect().top + window.scrollY - 96;
+  window.scrollTo({top,behavior:"smooth"});
+});
+const io = new IntersectionObserver(entries=>{
+  const v = entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+  if(v) setActive(v.target.id);
+},{rootMargin:"-30% 0px -55% 0px",threshold:[0,.25,.5,.75,1]});
+TABS.forEach(t=>{const el=document.getElementById(t.id); if(el) io.observe(el);});
+
+// Críticos
+const criticalAlert = DATA.criticalAlert || {};
+const criticalPoints = arr(DATA.criticalPoints);
+setText("critical-alert-title", val(criticalAlert.title, criticalPoints[0]?.title || "Pontos críticos em acompanhamento"));
+setText("critical-alert-body", val(criticalAlert.body, criticalPoints[0]?.body || "Acompanhar os itens críticos, responsáveis e prazos definidos para a semana."));
+document.getElementById("criticos-list").innerHTML = criticalPoints.length ? criticalPoints.map((p,idx)=>`
+  <li class="critical-item">
+    <div class="critical-head">
+      <div class="row"><span class="id-mono">${esc(p.id || String(idx + 1).padStart(2,"0"))}</span><h3>${esc(p.title)}</h3></div>
+      ${sticker(levelToTone[p.level]||levelToTone[String(p.level||'').toLowerCase()]||"neutral","Nível "+esc(p.level || "não informado"))}
+    </div>
+    <div class="critical-body">
+      <p>${esc(p.body || p.description)}</p>
+      <div class="tag-row">${arr(p.tags).map(t=>sticker("",t)).join("")}</div>
+      <div class="action-box"><div class="label">Ação obrigatória</div><p>${esc(p.action || p.actionDescription || "Não informado")}</p></div>
+    </div>
+  </li>`).join("") : `<li class="critical-item"><div class="critical-body"><p>Nenhum ponto crítico registrado para a semana.</p></div></li>`;
+
+// Phases
+const phases = arr(DATA.phases);
+document.getElementById("phase-grid").innerHTML = phases.length ? phases.map(p=>{
+  const t = progressTone(p.progress);
+  return `<div class="card phase">
+    <p class="pname">${esc(p.name)}</p>
+    <p class="pval">${p.progress === null || p.progress === undefined ? "—" : esc(p.progress)+"%"}</p>
+    ${bar(p.progress,t)}
+    <p class="pnote">${esc(p.note)}</p>
+  </div>`;
+}).join("") : `<div class="card phase"><p class="pname">Sem resumo de fases</p><p class="pval">—</p><p class="pnote">Nenhum indicador de fase informado.</p></div>`;
+
+// Schedule table
+let sb="";
+let sm="";
+const schedule = arr(DATA.schedule);
+if(schedule.length){
+  schedule.forEach(g=>{
+    sb += `<tr class="group-row"><td colspan="6">${esc(g.group)}</td></tr>`;
+    sm += `<div class="smgroup">${esc(g.group)}</div>`;
+    arr(g.rows).forEach(r=>{
+      const progress = r.progress === null || r.progress === undefined ? 0 : r.progress;
+      sb += `<tr>
+        <td class="row-item">${esc(r.item)}</td>
+        <td class="muted">${esc(r.resp)}</td>
+        <td class="muted tab-num">${esc(r.start)}</td>
+        <td class="muted tab-num">${esc(r.end)}</td>
+        <td><div class="bar-cell"><span class="pct">${esc(progress)}%</span>${bar(progress,progressTone(progress))}</div></td>
+        <td>${sticker(statusTone(r.status),r.statusLabel || r.status || "Não informado")}</td>
+      </tr>`;
+      sm += `<div class="smcard">
+        <div style="display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start">
+          <p style="margin:0;font-size:14px;font-weight:500">${esc(r.item)}</p>
+          ${sticker(statusTone(r.status),r.statusLabel || r.status || "Não informado")}
+        </div>
+        <div style="display:flex;gap:.5rem;font-size:12px;color:var(--muted-foreground);margin:.5rem 0">
+          <span>${esc(r.resp)}</span><span>·</span><span class="tab-num">${esc(r.start)} → ${esc(r.end)}</span>
+        </div>
+        <div style="display:flex;gap:.75rem;align-items:center">${bar(progress,progressTone(progress))}<span style="width:36px;text-align:right;font-size:12px;font-weight:600" class="tab-num">${esc(progress)}%</span></div>
+      </div>`;
+    });
   });
-  const io = new IntersectionObserver(entries => {
-    const visible = entries.filter(e => e.isIntersecting).sort((a,b) => b.intersectionRatio - a.intersectionRatio)[0];
-    if(visible) setActive(visible.target.id);
-  }, { rootMargin: '-30% 0px -55% 0px', threshold: [0,.25,.5,.75,1] });
-  tabs.forEach(t => { const el = document.getElementById(t.dataset.id); if(el) io.observe(el); });
-})();
+}else{
+  sb = `<tr><td colspan="6" class="muted">Nenhum item de cronograma registrado.</td></tr>`;
+  sm = `<div class="smcard"><p class="muted">Nenhum item de cronograma registrado.</p></div>`;
+}
+document.getElementById("sched-body").innerHTML = sb;
+document.getElementById("sched-mobile").innerHTML = sm;
+
+// Ambientes
+const ambientes = arr(DATA.ambientes);
+document.getElementById("amb-grid").innerHTML = ambientes.length ? ambientes.map(a=>`
+  <article class="card amb">
+    <div class="amb-top">
+      <div><h3>${esc(a.name)}</h3><p class="amb-meta">${esc(a.meta)}</p></div>
+      <span class="amb-pct">${a.progress === null || a.progress === undefined ? "—" : esc(a.progress)+"%"}</span>
+    </div>
+    <div style="margin-top:.75rem">${bar(a.progress,progressTone(a.progress))}</div>
+    <ul>${arr(a.bullets).map(b=>`<li><span>${esc(b)}</span></li>`).join("")}</ul>
+  </article>`).join("") : `<article class="card amb"><div class="amb-top"><div><h3>Sem ambientes registrados</h3><p class="amb-meta">Nenhum dado de ambiente informado.</p></div><span class="amb-pct">—</span></div></article>`;
+
+// Extra
+const extraEscopo = arr(DATA.extraEscopo);
+document.getElementById("extra-grid").innerHTML = extraEscopo.length ? extraEscopo.map((e,idx)=>`
+  <div class="card extra">
+    <div class="extra-head"><span class="id-mono" style="color:var(--brand-deep)">${esc(e.id || String(idx + 1).padStart(2,"0"))}</span>${sticker("moderado","Extra-Escopo")}</div>
+    <h3>${esc(e.title)}</h3>
+    <p>${esc(e.body || e.description)}</p>
+    <div class="tag-row" style="margin-top:1rem">${arr(e.tags).map(t=>sticker("",t)).join("")}</div>
+  </div>`).join("") : `<div class="card extra"><h3>Nenhum extra-escopo registrado</h3><p>Não houve registro de atividades fora do escopo/check-list para a semana.</p></div>`;
+setText("extra-note", val(DATA.extraEscopoNote, "Sem observação contratual adicional registrada."));
+
+// Pendências
+const pendencias = arr(DATA.pendenciasTools || DATA.pendencias);
+document.getElementById("pend-list").innerHTML = pendencias.length ? pendencias.map((p,idx)=>`
+  <div class="pend">
+    <span class="id">${esc(p.id || String(idx + 1).padStart(2,"0"))}</span>
+    <div>
+      <p class="t" style="margin:0">${esc(p.title)}</p>
+      <p class="d">${esc(p.desc || p.description)}</p>
+      <p class="a" style="margin:0">${esc(p.area || p.responsible || p.responsavel || "")}</p>
+    </div>
+    ${sticker(levelToTone[p.level]||levelToTone[String(p.level||'').toLowerCase()]||"neutral",p.level || p.priority || "Não informado")}
+  </div>`).join("") : `<div class="pend"><span class="id">—</span><div><p class="t" style="margin:0">Nenhuma pendência registrada</p><p class="d">Não há pendências relevantes informadas para a semana.</p></div>${sticker("ok","Sem pendência")}</div>`;
+
+// Plano
+const plano = arr(DATA.planoAcao);
+document.getElementById("plano-grid").innerHTML = plano.length ? plano.map((a,idx)=>`
+  <div class="card action-card">
+    <div class="action-card-top">
+      <span class="id-mono" style="color:var(--brand-deep)">${esc(a.id || String(idx + 1).padStart(2,"0"))}</span>
+      ${sticker(levelToTone[a.level]||levelToTone[String(a.level||'').toLowerCase()]||"neutral",a.level || "Não informado")}
+    </div>
+    <h3>${esc(a.title)}</h3>
+    <p>${esc(a.body || a.description)}</p>
+    <p class="footer">${esc(a.meta || [a.responsible, a.deadline].filter(Boolean).join(' · '))}</p>
+  </div>`).join("") : `<div class="card action-card"><h3>Nenhum plano de ação registrado</h3><p>Não há ações cadastradas para a semana.</p><p class="footer">Sem responsável/prazo informado</p></div>`;
+
+// Ata
+const ata = arr(DATA.ata);
+document.getElementById("ata-list").innerHTML = ata.length ? ata.map((i,idx)=>`
+  <article class="card ata">
+    <div class="ata-head"><span class="badge">${esc(i.id || idx + 1)}</span>${sticker("moderado",i.tag || i.type || "Registro")}</div>
+    <h3>${esc(i.title)}</h3>
+    <p>${esc(i.body || i.description)}</p>
+    <div class="dec"><div class="label">Decisão</div><p>${esc(i.decision || "Não informado")}</p></div>
+  </article>`).join("") : `<article class="card ata"><div class="ata-head"><span class="badge">—</span>${sticker("moderado","Sem ata")}</div><h3>Nenhum registro formal informado</h3><p>Não há deliberações de ata registradas para a semana.</p></article>`;
+
+// Deliberações
+const markClass = {"!":"crit","→":"go","○":"open","✓":"go"};
+const deliberacoes = arr(DATA.deliberacoes);
+document.getElementById("delib-list").innerHTML = deliberacoes.length ? deliberacoes.map(d=>`
+  <li class="delib">
+    <span class="mark ${markClass[d.mark]||'open'}">${esc(d.mark || "○")}</span>
+    <div class="body">
+      <p class="text">${esc(d.text)}</p>
+      <p class="meta">${esc(d.meta)}</p>
+    </div>
+  </li>`).join("") : `<li class="delib"><span class="mark open">○</span><div class="body"><p class="text">Nenhuma deliberação consolidada registrada.</p><p class="meta">Sem prazo</p></div></li>`;
 </script>
 </body>
 </html>

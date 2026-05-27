@@ -3,42 +3,48 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-.Python
+.pytest_cache/
+.mypy_cache/
+
+# Virtual envs
 venv/
+.venv/
+backend/venv/
+backend/.venv/
+
+# Env
 .env
-.env.*
-*.sqlite3
-
-# FastAPI / uploads / outputs
-backend/app/uploads/
-backend/app/outputs/
-backend/uploads/
-backend/outputs/
-
-# Node / React
-frontend/node_modules/
-frontend/dist/
+*.env
+backend/.env
 frontend/.env
-frontend/.env.*
 
-# Logs
-*.log
-logs/
+# Node
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
 
-# OS / IDE
+# Uploads / outputs
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
+backend/app/outputs/*
+!backend/app/outputs/.gitkeep
+
+# Local files
 .DS_Store
 Thumbs.db
 .vscode/
-.idea/
 
-# Alembic cache
-*.pyc
+# Windows Explorer
+desktop.ini
+**/desktop.ini
 
-# Arquivos sensíveis/anexos reais
-*.pdf
-*.docx
-*.xlsx
-*.xls
-*.png
-*.jpg
-*.jpeg
+# Uploads locais
+backend/app/uploads/**
+!backend/app/uploads/
+!backend/app/uploads/.gitkeep
+
+# Outputs/relatórios gerados localmente
+backend/app/outputs/**
+!backend/app/outputs/
+!backend/app/outputs/.gitkeep

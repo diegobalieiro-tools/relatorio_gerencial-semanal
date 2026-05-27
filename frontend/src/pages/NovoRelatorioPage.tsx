@@ -23,7 +23,6 @@ export function NovoRelatorioPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [numeroAta, setNumeroAta] = useState('');
   const [dataReferencia, setDataReferencia] = useState('');
-  const [semanaReferencia, setSemanaReferencia] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [conteudoWhatsapp, setConteudoWhatsapp] = useState('');
   const [conteudoTranscricao, setConteudoTranscricao] = useState('');
@@ -69,7 +68,6 @@ export function NovoRelatorioPage() {
       formData.append('obra_id', String(id));
       formData.append('numero_ata', numeroAta);
       formData.append('data_referencia', dataReferencia);
-      formData.append('semana_referencia', semanaReferencia);
       formData.append('observacoes', observacoes);
       formData.append('conteudo_whatsapp', conteudoWhatsapp);
       formData.append('conteudo_transcricao', conteudoTranscricao);
@@ -110,9 +108,6 @@ export function NovoRelatorioPage() {
               </Field>
               <Field label="Data da reunião" required>
                 <Input type="date" value={dataReferencia} onChange={(e) => setDataReferencia(e.target.value)} required />
-              </Field>
-              <Field label="Semana de referência">
-                <Input value={semanaReferencia} onChange={(e) => setSemanaReferencia(e.target.value)} placeholder="Ex: Semana 21 / 2026" />
               </Field>
               <Field label="Observações adicionais" className="span-2">
                 <Textarea rows={4} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
