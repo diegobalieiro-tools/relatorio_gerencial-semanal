@@ -53,6 +53,59 @@ def _progress(value: Any) -> int | None:
     return int(max(0, min(100, round(num))))
 
 
+def _ata_norm(value: Any) -> str:
+    """Normaliza número de ata para comparação: 004, 0004 e ATA 004 viram 4."""
+    txt = _text(value)
+    if not txt:
+        return ""
+    nums = re.findall(r"\d+", txt)
+    if not nums:
+        return _norm_key(txt) if "_norm_key" in globals() else txt.strip().lower()
+    try:
+        return str(int(nums[-1]))
+    except ValueError:
+        return nums[-1].lstrip("0") or "0"
+
+
+def _ata_equal(left: Any, right: Any) -> bool:
+    l_norm = _ata_norm(left)
+    r_norm = _ata_norm(right)
+    return bool(l_norm and r_norm and l_norm == r_norm)
+
+
+def _parse_date_any(value: Any) -> date | None:
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    parsed = safe_date(value)
+    if parsed:
+        return parsed
+    txt = _text(value)
+    if txt:
+        m = _DATE_RE.search(txt) if "_DATE_RE" in globals() else re.search(r"\b\d{2}/\d{2}/\d{4}\b", txt)
+        if m:
+            return safe_date(m.group(0))
+    return None
+
+
+def _calculate_period_progress(start_value: Any, end_value: Any, reference_value: Any, fallback: Any = None) -> int | None:
+    """Calcula avanço por janela de datas: início/data item -> prazo/término, na data de referência."""
+    explicit = _progress(fallback)
+    start = _parse_date_any(start_value)
+    end = _parse_date_any(end_value)
+    reference = _parse_date_any(reference_value)
+    if not (start and end and reference):
+        return explicit
+    if end <= start:
+        return 100 if reference >= end else 0
+    if reference <= start:
+        return 0
+    if reference >= end:
+        return 100
+    total_days = max((end - start).days, 1)
+    elapsed_days = max((reference - start).days, 0)
+    return int(max(0, min(100, round((elapsed_days / total_days) * 100))))
 
 
 _DATE_RE = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
@@ -82,6 +135,15 @@ def _compact_text(value: Any, max_len: int | None = None) -> str:
     if max_len and len(txt) > max_len:
         txt = txt[: max_len - 1].rstrip() + "…"
     return txt
+
+
+def _fix_title_by_body(titulo: str, body: str) -> str:
+    """Corrige títulos repetidos quando o OCR mantém o cabeçalho errado, como mapa civil x instalações."""
+    title_key = _norm_key(titulo) if "_norm_key" in globals() else titulo.lower()
+    body_key = _norm_key(body) if "_norm_key" in globals() else body.lower()
+    if "mapa mao de obra civil" in title_key and ("instalacoes eletricas" in body_key or "hidraulicas" in body_key):
+        return "Mapa de instalações elétricas e hidráulicas"
+    return titulo
 
 
 def _canonical_category_value(value: Any) -> str:
@@ -240,6 +302,7 @@ def _parse_ocr_section_rows(section_text: str, section_key: str, ata_atual: str 
         responsavel = " ".join(resp_lines).strip(" -") or "Indefinido"
         titulo = lines[title_idx].rstrip(":").strip()
         body = "\n".join(lines[title_idx + 1:]).strip()
+        titulo = _fix_title_by_body(titulo, body)
         if _is_placeholder(titulo):
             continue
 
@@ -575,14 +638,18 @@ def _merge_item(base: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any
 
 def _atividade_key(item: dict[str, Any]) -> str:
     titulo = _norm_key(_atividade_titulo(item))
-    prazo = _norm_key(_atividade_prazo(item))
     status = _norm_key(normalizar_status(item.get("status")) or item.get("status"))
     secao = _norm_key(_atividade_categoria(item))
+    numero_ata = _ata_norm(item.get("numero_ata_origem"))
+    numero_item = _text(item.get("numero_item"))
+    if numero_ata and numero_item:
+        return f"ata:{numero_ata}|item:{numero_item}|{status}"
     if _is_placeholder(titulo):
+        prazo = _norm_key(_atividade_prazo(item))
         return f"{titulo}|{secao}|{prazo}|{status}|{_norm_key(_atividade_descricao(item))[:80]}"
-    # Não usar a seção como chave principal: o mesmo item vinha como "Itens atuais"
-    # pelo GPT2 e como "Itens Ata Atual" pelo OCR, gerando duplicidade.
-    return f"{titulo}|{prazo}|{status}"
+    # Para mesclar itens iguais vindos do GPT2 e do OCR, não use prazo como chave:
+    # versões pobres frequentemente vêm sem prazo e duplicavam as linhas enriquecidas.
+    return f"{titulo}|{status}"
 
 
 def _dedupe_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -713,8 +780,15 @@ def _collect_atividades(dados: dict[str, Any], extracao: dict[str, Any] | None =
     # Fonte de segurança: GPT1/OCR validado. Essa etapa costuma preservar melhor os itens da ata.
     atividades_gpt1 = _collect_atividades_from_extracao(extracao, ata_atual=ata_atual)
     if atividades_gpt1:
-        # Sempre adiciona o GPT1 para não perder item; o dedupe escolhe a versão mais rica.
-        atividades.extend(atividades_gpt1)
+        # Quando o OCR encontrou a tabela formal da ATA, ele passa a ser a fonte autoritativa
+        # para contagens, cronograma e pendências. Isso evita duplicar itens vindos do GPT2
+        # em grupos genéricos como "Cronograma Executivo".
+        secoes_formais = {_canonical_category_value(a.get("categoria") or a.get("secao")) for a in atividades_gpt1}
+        tem_tabela_formal = len(atividades_gpt1) >= 8 and any("Ata Atual" in secao for secao in secoes_formais)
+        if tem_tabela_formal:
+            atividades = list(atividades_gpt1)
+        else:
+            atividades.extend(atividades_gpt1)
 
     atividades = _dedupe_items(atividades)
 
@@ -841,9 +915,9 @@ def _build_section_texts(dados: dict[str, Any], pendencias: list[dict[str, Any]]
     analise = _as_dict(dados.get("analise_executiva"))
     leitura = _as_dict(analise.get("leitura_gerencial"))
     return {
-        "criticos": _text(analise.get("justificativa_viabilidade"), "Diagnóstico direto dos fatores que determinam a viabilidade da entrega. Ordenados por nível de criticidade."),
-        "cronograma": _text("; ".join(analise.get("caminho_critico") or []), "Leitura consolidada de frentes, responsáveis, prazos, avanço e status executivo."),
-        "ambientes": "Situação atual de cada frente com avanço, dependências e próximos passos.",
+        "criticos": "Todos os itens da ata com status Em andamento, organizados com responsável, prazo e ação obrigatória.",
+        "cronograma": "Itens da ata atual, com início pela coluna Data Item, término pelo prazo e avanço calculado pela janela de datas.",
+        "ambientes": "Consolidação dos itens por responsável, separando ações em aberto, informações, concluídas e prazos críticos.",
         "extraEscopo": "Intervenções técnicas identificadas em campo ou registradas em ata.",
         "pendenciasTitle": "Pendências TOOLS / Cliente / Projetistas / Fornecedores",
         "pendencias": f"{len(pendencias)} decisões, entregas ou liberações pendentes exigem acompanhamento.",
@@ -858,40 +932,17 @@ def _build_section_texts(dados: dict[str, Any], pendencias: list[dict[str, Any]]
 
 
 def _build_critical_points(dados: dict[str, Any], atividades: list[dict[str, Any]], pendencias: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    pontos = []
-    for idx, item in enumerate(_as_list(dados.get("pontos_criticos")), start=1):
-        if not isinstance(item, dict):
-            continue
-        pontos.append(
-            {
-                "id": _text(item.get("id"), f"{idx:02d}"),
-                "title": _text(item.get("titulo") or item.get("title"), "Ponto crítico sem título"),
-                "level": _nivel_template(item.get("nivel") or item.get("criticidade")),
-                "body": _text(item.get("descricao_executiva") or item.get("descricao") or item.get("description")),
-                "tags": _as_list(item.get("tags")),
-                "action": _text(item.get("acao_obrigatoria") or item.get("acao_recomendada") or item.get("proximos_passos"), "Acompanhar responsável e prazo."),
-            }
-        )
+    """Primeira aba do relatório: Pendências.
 
-    # Se os pontos críticos vieram genéricos ou muito menores que as pendências reais,
-    # recalcula a partir dos itens ativos/recorrentes da ata.
-    pontos_fracos = (not pontos) or _looks_weak_items([{"titulo": p.get("title"), "descricao": p.get("body")} for p in pontos], min_good=2)
-    if pontos and len(pontos) < min(3, max(1, len(pendencias) // 5)):
-        pontos_fracos = True
-    if pontos and not pontos_fracos:
-        return pontos[:7]
+    Regra visual solicitada: trazer todos os itens cujo Status da ATA seja
+    "Em andamento", não apenas os pontos críticos/altos.
+    """
+    candidatos = [item for item in atividades if isinstance(item, dict) and normalizar_status(item.get("status")) == "andamento"]
+    if not candidatos:
+        candidatos = [item for item in pendencias if isinstance(item, dict) and normalizar_status(item.get("status")) == "andamento"]
 
-    pontos = []
-    candidatos = pendencias or atividades
-    def score(item: dict[str, Any]) -> tuple[int, int, int]:
-        nivel = _nivel_template(item.get("criticidade"))
-        n = {"critico": 4, "alto": 3, "moderado": 2, "baixo": 1}.get(nivel, 1)
-        recorrente = 1 if item.get("item_recorrente") else 0
-        reprogramado = 1 if item.get("houve_reprogramacao") else 0
-        return (n, recorrente, reprogramado)
-
-    ordenados = sorted([i for i in candidatos if isinstance(i, dict)], key=score, reverse=True)
-    for idx, item in enumerate(ordenados[:7], start=1):
+    pontos: list[dict[str, Any]] = []
+    for idx, item in enumerate(candidatos, start=1):
         prazo = _atividade_prazo(item)
         resp = _atividade_responsavel(item)
         tags = [_status_label(item.get("status")), f"Prazo: {prazo}", f"Responsável: {resp}"]
@@ -914,8 +965,7 @@ def _build_critical_points(dados: dict[str, Any], atividades: list[dict[str, Any
         )
     return pontos
 
-
-def _build_phases(dados: dict[str, Any], atividades: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _build_phases(dados: dict[str, Any], atividades: list[dict[str, Any]], current_ata: Any = None) -> list[dict[str, Any]]:
     explicit = []
     for item in _as_list(dados.get("cronograma_summary") or dados.get("phases")):
         if isinstance(item, dict):
@@ -923,69 +973,65 @@ def _build_phases(dados: dict[str, Any], atividades: list[dict[str, Any]]) -> li
     if explicit:
         return explicit
 
-    ativos = [a for a in atividades if normalizar_status(a.get("status")) not in {"concluido", "informativo"}]
     informativos = [a for a in atividades if normalizar_status(a.get("status")) == "informativo"]
     concluidos = [a for a in atividades if normalizar_status(a.get("status")) == "concluido"]
-    total = max(len(atividades), 1)
-    atuais = [a for a in atividades if "atual" in _atividade_categoria(a).lower()]
+    total = len(atividades)
+    total_base = max(total, 1)
+    atuais = [a for a in atividades if _ata_equal(a.get("numero_ata_origem"), current_ata) or a.get("ata_atual") is True]
+    percent_concluidos = round((len(concluidos) / total_base) * 100) if total else 0
 
     return [
-        {"name": "Itens ativos", "progress": None, "note": f"{len(ativos)} itens pendentes/em andamento detectados na ata."},
-        {"name": "Informativos formais", "progress": None, "note": f"{len(informativos)} registros informativos separados das pendências."},
-        {"name": "Itens concluídos", "progress": round((len(concluidos) / total) * 100), "note": f"{len(concluidos)} itens concluídos ou baixados em ata."},
-        {"name": "Itens da ata atual", "progress": None, "note": f"{len(atuais)} itens registrados na ata atual."},
+        {
+            "name": "Itens da ata",
+            "value": str(total),
+            "progress": None,
+            "note": "Contagem geral de todos os itens identificados na ata.",
+        },
+        {
+            "name": "Itens informação",
+            "value": str(len(informativos)),
+            "progress": None,
+            "note": "Quantidade de itens com status Informação.",
+        },
+        {
+            "name": "Itens concluídos",
+            "value": f"{percent_concluidos}%",
+            "progress": percent_concluidos,
+            "note": f"{len(concluidos)} itens concluídos com base em {total} item(ns) da ata.",
+        },
+        {
+            "name": "Itens da ata atual",
+            "value": str(len(atuais)),
+            "progress": None,
+            "note": "Itens cujo Nº Ata corresponde à ata processada.",
+        },
     ]
 
+def _build_schedule(dados: dict[str, Any], atividades: list[dict[str, Any]], current_ata: Any = None, reference_date: Any = None) -> list[dict[str, Any]]:
+    """Cronograma da ATA: somente itens cujo Nº Ata corresponde à ata atual."""
+    rows: list[dict[str, Any]] = []
+    for item in atividades:
+        if not isinstance(item, dict):
+            continue
+        if current_ata and not (_ata_equal(item.get("numero_ata_origem"), current_ata) or item.get("ata_atual") is True):
+            continue
+        start_value = item.get("data_abertura") or item.get("inicio")
+        end_value = item.get("prazo_vigente") or item.get("prazo") or item.get("termino") or item.get("prazo_limite")
+        rows.append(
+            {
+                "item": _atividade_titulo(item),
+                "resp": _atividade_responsavel(item),
+                "start": _date_br(start_value),
+                "end": _date_br(end_value),
+                "progress": _calculate_period_progress(start_value, end_value, reference_date, item.get("avanco_percentual")),
+                "status": _status_template(item.get("status")),
+                "statusLabel": _status_label(item.get("status")),
+            }
+        )
 
-def _build_schedule(dados: dict[str, Any], atividades: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    rows_by_group: dict[str, list[dict[str, Any]]] = defaultdict(list)
-
-    cronograma = _as_list(dados.get("cronograma_executivo"))
-    cronograma_rows: list[dict[str, Any]] = []
-    if cronograma:
-        for item in cronograma:
-            if not isinstance(item, dict):
-                continue
-            titulo = _text(item.get("frente") or item.get("ambiente_ou_pacote") or item.get("titulo"), "Item do cronograma")
-            cronograma_rows.append({**item, "titulo": titulo})
-
-    use_cronograma = bool(cronograma_rows) and not _looks_weak_items(cronograma_rows, min_good=2)
-    if use_cronograma:
-        for item in cronograma_rows:
-            group = _text(item.get("grupo") or item.get("categoria"), "Cronograma Executivo")
-            rows_by_group[group].append(
-                {
-                    "item": _text(item.get("titulo"), "Item do cronograma"),
-                    "resp": _text(item.get("responsavel"), "Indefinido"),
-                    "start": _date_br(item.get("inicio")),
-                    "end": _date_br(item.get("termino") or item.get("prazo_reprogramado") or item.get("prazo_vigente")),
-                    "progress": _progress(item.get("avanco_percentual")),
-                    "status": _status_template(item.get("status")),
-                    "statusLabel": _status_label(item.get("status")),
-                }
-            )
-    else:
-        # Cronograma executivo deve refletir itens ativos/em andamento.
-        # Concluídos e informativos aparecem nas abas Ata e Mudanças/Histórico, para não poluir o caminho operacional.
-        for item in atividades:
-            status = normalizar_status(item.get("status"))
-            if status in {"informativo", "concluido"}:
-                continue
-            group = _atividade_categoria(item)
-            rows_by_group[group].append(
-                {
-                    "item": _atividade_titulo(item),
-                    "resp": _atividade_responsavel(item),
-                    "start": _date_br(item.get("data_abertura") or item.get("inicio")),
-                    "end": _atividade_prazo(item),
-                    "progress": _progress(item.get("avanco_percentual")),
-                    "status": _status_template(item.get("status")),
-                    "statusLabel": _status_label(item.get("status")),
-                }
-            )
-
-    return [{"group": group, "rows": rows} for group, rows in rows_by_group.items() if rows]
-
+    if rows:
+        return [{"group": "Itens da ATA", "rows": rows}]
+    return []
 
 def _build_ambientes(dados: dict[str, Any], atividades: list[dict[str, Any]]) -> list[dict[str, Any]]:
     output = []
@@ -1027,6 +1073,104 @@ def _build_ambientes(dados: dict[str, Any], atividades: list[dict[str, Any]]) ->
             }
         )
     return output
+
+
+
+
+def _display_responsavel(value: Any) -> str:
+    key = _norm_key(value)
+    mapping = {
+        "cateo": "CATEO",
+        "cliente": "Cliente",
+        "arquitetura": "Arquitetura",
+        "tools": "TOOLS",
+        "projetista": "Projetista",
+        "fornecedor": "Fornecedor",
+        "condominio": "Condomínio",
+    }
+    return mapping.get(key, _text(value, "Indefinido"))
+
+
+def _split_responsaveis(value: Any) -> list[str]:
+    raw = _text(value, "Indefinido")
+    raw = re.sub(r"\s+", " ", raw.replace("\n", " ")).strip()
+    if not raw:
+        return ["Indefinido"]
+    # Mantém barras como separador de corresponsáveis: CATEO / CLIENTE / ARQUITETURA.
+    parts = [p.strip(" -•,;") for p in re.split(r"\s*/\s*", raw) if p.strip(" -•,;")]
+    if not parts:
+        parts = [raw]
+    return [_display_responsavel(p) for p in parts]
+
+
+def _is_item_aberto(status_norm: str) -> bool:
+    return status_norm not in {"informativo", "concluido"}
+
+
+def _is_prazo_critico_item(item: dict[str, Any], reference_date: Any = None) -> bool:
+    status_norm = normalizar_status(item.get("status"))
+    if not _is_item_aberto(status_norm):
+        return False
+    nivel = _nivel_template(item.get("criticidade"))
+    if nivel in {"alto", "critico"}:
+        return True
+    incidencia = _number(item.get("incidencia") or item.get("sla"))
+    if incidencia is not None and incidencia >= 2:
+        return True
+    prazo = _parse_date_any(item.get("prazo_vigente") or item.get("prazo") or item.get("termino") or item.get("prazo_limite"))
+    ref = _parse_date_any(reference_date)
+    if prazo and ref and prazo <= ref:
+        return True
+    return False
+
+
+def _build_matriz_responsabilidades(dados: dict[str, Any], atividades: list[dict[str, Any]], reference_date: Any = None) -> list[dict[str, Any]]:
+    """Aba 3: Matriz de responsabilidades.
+
+    Consolida todos os itens por responsável. Quando o responsável vem composto
+    por barras, cada parte recebe a contagem do item para evidenciar
+    corresponsabilidade de Cliente, CATEO, Arquitetura, TOOLS etc.
+    """
+    matriz: dict[str, dict[str, Any]] = {}
+
+    def ensure(resp: str) -> dict[str, Any]:
+        if resp not in matriz:
+            matriz[resp] = {
+                "responsavel": resp,
+                "acoesEmAberto": 0,
+                "informacoes": 0,
+                "concluidas": 0,
+                "prazosCriticos": 0,
+            }
+        return matriz[resp]
+
+    for item in atividades:
+        if not isinstance(item, dict):
+            continue
+        status_norm = normalizar_status(item.get("status"))
+        responsaveis = _split_responsaveis(_atividade_responsavel(item))
+        for resp in responsaveis:
+            row = ensure(resp)
+            if status_norm == "informativo":
+                row["informacoes"] += 1
+            elif status_norm == "concluido":
+                row["concluidas"] += 1
+            else:
+                row["acoesEmAberto"] += 1
+                if _is_prazo_critico_item(item, reference_date):
+                    row["prazosCriticos"] += 1
+
+    ordem_preferencial = {"CATEO": 0, "Cliente": 1, "Arquitetura": 2, "TOOLS": 3}
+    rows = list(matriz.values())
+    rows.sort(
+        key=lambda r: (
+            ordem_preferencial.get(r["responsavel"], 99),
+            -int(r["acoesEmAberto"]),
+            -int(r["prazosCriticos"]),
+            r["responsavel"],
+        )
+    )
+    return rows
 
 
 def _build_extra(dados: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
@@ -1317,7 +1461,7 @@ def _merge_with_gpt3(base: dict[str, Any], gpt3: dict[str, Any] | None) -> dict[
             merged[key] = current
 
     # Listas do GPT3 só entram quando o adaptador não conseguiu montar nada relevante.
-    for key in ["criticalPoints", "phases", "schedule", "ambientes", "extraEscopo", "pendenciasTools", "planoAcao", "ata", "deliberacoes", "historicoMudancas"]:
+    for key in ["criticalPoints", "phases", "schedule", "ambientes", "matrizResponsabilidades", "extraEscopo", "pendenciasTools", "planoAcao", "ata", "deliberacoes", "historicoMudancas"]:
         incoming = gpt3.get(key)
         if not isinstance(incoming, list):
             continue
@@ -1365,9 +1509,10 @@ def build_report_json_from_gpt2(
         "sectionTexts": _build_section_texts(dados, pendencias),
         "criticalAlert": {"title": alert_title, "body": alert_body},
         "criticalPoints": pontos,
-        "phases": _build_phases(dados, atividades),
-        "schedule": _build_schedule(dados, atividades),
+        "phases": _build_phases(dados, atividades, current_ata=relatorio.numero_ata),
+        "schedule": _build_schedule(dados, atividades, current_ata=relatorio.numero_ata, reference_date=relatorio.data_referencia),
         "ambientes": _build_ambientes(dados, atividades),
+        "matrizResponsabilidades": _build_matriz_responsabilidades(dados, atividades, relatorio.data_referencia),
         "extraEscopo": extra,
         "extraEscopoNote": extra_note,
         "pendenciasTools": _build_pendencias_tools(pendencias),
