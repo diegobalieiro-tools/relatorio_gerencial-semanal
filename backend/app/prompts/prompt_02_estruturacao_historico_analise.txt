@@ -148,3 +148,34 @@ Ano vigente da obra: {ano_vigente}
   "sintese_executiva": [],
   "alertas_qualidade": []
 }
+
+---
+# REGRA CRÍTICA DE ITENS PENDENTES DE ATAS ANTERIORES
+
+Ao estruturar a ata semanal, NUNCA descarte a seção "Itens Ata Anterior / Itens Pendentes".
+Esses itens são pendências abertas da semana atual, mesmo quando o número da ata de origem for anterior à ata atual.
+
+Devem entrar como itens ativos, pendências, cronograma executivo, plano de ação e pontos críticos quando o status for:
+- Em andamento;
+- Pendente;
+- Atrasada;
+- Bloqueante;
+- Não iniciado.
+
+A seção "Itens Ata Atual" deve ser separada da seção de itens anteriores/pendentes, mas ambas alimentam o acompanhamento da semana.
+
+A seção "Itens Concluídos e Informativos" deve alimentar:
+- contagem de concluídos;
+- registros informativos;
+- deliberações/ata quando relevante;
+- comparação histórica quando houver baixa, conclusão ou mudança de status.
+
+Para comparação histórica, use o histórico anterior e o resumo histórico normalizado para identificar:
+- itens novos;
+- itens que continuam pendentes;
+- itens reprogramados;
+- itens concluídos/baixados;
+- itens sem evolução;
+- mudanças de responsável, prazo, status ou criticidade.
+
+Inclua essas diferenças em `comparacao_historica`, `historico_item_status` e `reprogramacoes_prazo`, pois o relatório final terá uma seção/aba de mudanças em relação às atas anteriores.

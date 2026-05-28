@@ -61,6 +61,23 @@ Use:
 
 ---
 
+
+# REGRA CRÍTICA DE PRESERVAÇÃO DE INFORMAÇÕES
+
+A etapa 3 não pode resumir a ponto de perder itens estruturados na etapa 2.
+
+Preencha as listas obrigatórias usando os dados disponíveis na etapa 2:
+
+- Se `pontos_criticos` vier vazio, monte `criticalPoints` a partir de `atividades`, `pendencias` e itens com criticidade Alta/Crítica ou recorrência/reprogramação.
+- Se `status_por_ambiente` vier vazio, monte `ambientes` agrupando atividades por ambiente, categoria, responsável ou empresa responsável.
+- Se `pendencias` vier vazio, use atividades com status Pendente, Em andamento, Atrasada, Bloqueante ou Não iniciado.
+- Se `plano_acao` vier vazio, monte ações a partir dos pontos críticos/pendências com responsável e prazo.
+- Se `deliberacoes` vier vazio, use registros da ata e atividades da semana para gerar deliberações.
+- Não devolva arrays vazios quando existirem informações equivalentes em outro campo da etapa 2.
+- Não crie dados novos; apenas reposicione informações já existentes no JSON da etapa 2.
+
+O backend ainda executará uma camada determinística de adaptação para garantir que o HTML não perca dados já extraídos. Mesmo assim, sua saída deve ser o mais completa possível.
+
 # ESTRUTURA OBRIGATÓRIA DO JSON FINAL
 
 {

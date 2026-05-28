@@ -15,6 +15,7 @@ from app.services.normalization_service import gerar_nome_output, safe_date
 from app.services.openai_service import OpenAIJsonResult, OpenAIService
 from app.services.persistence_service import persist_output_gpt2
 from app.services.render_service import render_report_html
+from app.services.report_adapter_service import build_report_json_from_gpt2
 from app.services.storage_service import build_files_context_text, save_uploads
 
 PROMPT_1 = "prompt_01_leitura_visual_ocr_validacao.txt"
@@ -206,6 +207,28 @@ class PipelineService:
             self.db.commit()
 
             step3 = await self.openai.run_prompt_json(PROMPT_3, step3_input)
+
+            # O GPT3 gera o JSON final, mas não pode ser a única fonte de dados do HTML.
+            # Em testes reais, ele pode resumir demais e retornar listas vazias
+            # (pontos críticos, pendências, ambientes etc.). O adaptador abaixo recompõe
+            # o report_json a partir do GPT2, preservando todas as informações já extraídas
+            # e usa o GPT3 apenas como complemento visual/textual.
+            # Enriquecemos o GPT 1 com o texto bruto extraído dos arquivos.
+            # Isso permite que o report_adapter reconstrua deterministicamente a tabela completa
+            # da ATA quando o GPT 1/2 resumirem ou omitirem linhas.
+            dados_gpt1_enriquecido = {
+                **(step1.data or {}),
+                "arquivos_contexto_extraido": files_context_text,
+            }
+
+            final_report_json = build_report_json_from_gpt2(
+                obra=obra,
+                relatorio=relatorio,
+                dados_gpt2=step2.data,
+                dados_gpt3=step3.data,
+                dados_gpt1=dados_gpt1_enriquecido,
+            )
+
             _upsert_etapa(
                 self.db,
                 relatorio,
@@ -213,13 +236,13 @@ class PipelineService:
                 ETAPA_3,
                 "concluido",
                 input_json=step3_input,
-                output_json=step3.data,
+                output_json={"raw_gpt3": step3.data, "report_json_final": final_report_json},
                 result=step3,
             )
             self.db.commit()
 
-            relatorio.report_json = step3.data
-            html_path = render_report_html(relatorio.id, step3.data)
+            relatorio.report_json = final_report_json
+            html_path = render_report_html(relatorio.id, final_report_json)
             relatorio.html_path = html_path
             relatorio.status = "concluido"
             self.db.add(relatorio)
