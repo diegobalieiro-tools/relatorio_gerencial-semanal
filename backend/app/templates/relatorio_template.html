@@ -76,7 +76,7 @@ button{font:inherit;cursor:pointer;border:0;background:transparent;color:inherit
 .tab.active{background:var(--brand);color:var(--brand-foreground);box-shadow:0 1px 2px rgba(0,0,0,.05)}
 
 /* sections */
-main{padding:2.5rem 0 6rem}
+main{padding:3.75rem 0 6rem}
 section{padding-top:3rem;scroll-margin-top:96px}
 section:first-child{padding-top:0}
 .sect-header{margin-bottom:2rem;display:flex;flex-direction:column;gap:.75rem}
@@ -184,14 +184,34 @@ td{padding:.75rem 1rem;border-top:1px solid rgba(227,234,238,.7)}
 .matrix-empty{padding:1.25rem;color:var(--muted-foreground);font-size:14px}
 @media(max-width:767px){.matrix-card{overflow-x:auto}.matrix-table{min-width:640px}}
 
-/* extra */
-.extra{padding:1.25rem}
-.extra-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
-.extra h3{margin:.5rem 0 0;font-size:1rem;font-weight:600}
-.extra p{margin:.5rem 0 0;font-size:14px;line-height:1.6;color:var(--muted-foreground)}
-.note-box{margin-top:1.5rem;border:1px solid rgba(12,138,154,.3);background:var(--brand-soft);padding:1.25rem;border-radius:16px;font-size:14px;color:var(--brand-deep)}
-.note-box .label{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(10,91,102,.7)}
-.note-box p{margin:.25rem 0 0}
+/* impactos */
+.impact-grid{display:grid;grid-template-columns:1fr;gap:1.25rem}
+@media(min-width:900px){.impact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.impact-card{padding:1.25rem 1.25rem 1.15rem;display:flex;flex-direction:column;gap:1rem;border-radius:18px;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow-card)}
+.impact-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+.impact-title-block{min-width:0}
+.impact-kind{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:9999px;padding:.18rem .55rem;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#fff;color:var(--muted-foreground);line-height:1.2}
+.impact-kind.prazo{background:rgba(210,58,43,.06);border-color:rgba(210,58,43,.35);color:var(--destructive)}
+.impact-kind.custo{background:rgba(224,161,58,.08);border-color:rgba(224,161,58,.45);color:var(--warning-foreground)}
+.impact-kind.projeto{background:rgba(12,138,154,.08);border-color:rgba(12,138,154,.32);color:var(--brand-deep)}
+.impact-kind.documental{background:rgba(92,107,120,.08);border-color:rgba(92,107,120,.28);color:#41515d}
+.impact-card h3{margin:1rem 0 .45rem;font-size:1.05rem;font-weight:700;letter-spacing:-.01em;color:var(--foreground)}
+.impact-card .impact-desc{margin:0;font-size:13px;line-height:1.6;color:#40515f;max-width:96%}
+.impact-count{display:inline-flex;align-items:center;justify-content:center;min-width:46px;height:24px;padding:0 .65rem;border-radius:9999px;background:#eaf3f4;color:#35515a;font-size:11px;font-weight:700;white-space:nowrap}
+.impact-divider{height:1px;background:var(--border);margin:.15rem 0 .1rem}
+.impact-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.75rem}
+.impact-list li{background:#f8fbfb;border:1px solid var(--border);border-radius:14px;padding:.95rem 1rem;box-shadow:0 1px 0 rgba(15,30,43,.02)}
+.impact-item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+.impact-item-title{margin:0;font-size:14px;font-weight:700;color:var(--foreground);line-height:1.35}
+.impact-level{display:inline-flex;align-items:center;justify-content:center;border-radius:9999px;border:1px solid var(--border);padding:.15rem .55rem;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#fff;color:var(--muted-foreground);white-space:nowrap}
+.impact-level.critico{background:rgba(210,58,43,.06);border-color:rgba(210,58,43,.35);color:var(--destructive)}
+.impact-level.alto{background:rgba(224,161,58,.08);border-color:rgba(224,161,58,.45);color:var(--warning-foreground)}
+.impact-level.info{background:var(--brand-soft);border-color:rgba(12,138,154,.28);color:var(--brand-deep)}
+.impact-item-desc{margin:.45rem 0 0;font-size:13px;color:#40515f;line-height:1.55}
+.impact-item-meta{margin:.6rem 0 0;font-size:12px;color:var(--brand-deep);font-weight:600}
+.impact-item-meta strong{font-weight:800;color:var(--brand-deep)}
+.impact-empty{padding:1rem;border:1px dashed var(--border);border-radius:14px;background:#f8fbfb;color:var(--muted-foreground);font-size:14px}
+@media(max-width:640px){.impact-head{flex-direction:column}.impact-count{align-self:flex-start}.impact-item-top{flex-direction:column}}
 
 /* pendencias */
 .pend-list{overflow:hidden;border:1px solid var(--border);background:var(--card);border-radius:16px;box-shadow:var(--shadow-card)}
@@ -327,37 +347,20 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
       <div class="sect-title-wrap">
         <div class="sect-num">04</div>
         <div>
-          <p class="sect-eyebrow">Extra-Escopo Executado</p>
-          <h2 class="sect-title">Atividades Fora do Check-list</h2>
+          <p class="sect-eyebrow">Tipos de Impacto</p>
+          <h2 class="sect-title">Pendências por Tipo de Impacto</h2>
         </div>
       </div>
-      <p class="sect-desc" id="extra-desc">Intervenções técnicas identificadas em campo ou registradas em ata.</p>
+      <p class="sect-desc" id="extra-desc">Separação gerencial das pendências por impacto em prazo, custo, projeto/definição e documentação/contratos.</p>
     </div>
-    <div class="grid cols-2" id="extra-grid"></div>
-    <div class="note-box">
-      <div class="label">Observação contratual</div>
-      <p id="extra-note">Sem observação contratual adicional registrada.</p>
-    </div>
+    <div class="impact-grid" id="impact-grid"></div>
   </section>
 
-  <section id="pendencias">
-    <div class="sect-header">
-      <div class="sect-title-wrap">
-        <div class="sect-num">05</div>
-        <div>
-          <p class="sect-eyebrow">Definições Pendentes</p>
-          <h2 class="sect-title" id="pendencias-title">Pendências TOOLS</h2>
-        </div>
-      </div>
-      <p class="sect-desc" id="pendencias-desc">Decisões, entregas ou liberações pendentes exigem acompanhamento.</p>
-    </div>
-    <div class="pend-list" id="pend-list"></div>
-  </section>
 
   <section id="plano">
     <div class="sect-header">
       <div class="sect-title-wrap">
-        <div class="sect-num">06</div>
+        <div class="sect-num">05</div>
         <div>
           <p class="sect-eyebrow">Plano de Ação Semanal</p>
           <h2 class="sect-title" id="plano-title">Plano de Ação Semanal</h2>
@@ -371,7 +374,7 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
   <section id="ata">
     <div class="sect-header">
       <div class="sect-title-wrap">
-        <div class="sect-num">07</div>
+        <div class="sect-num">06</div>
         <div>
           <p class="sect-eyebrow">Ata de Reunião</p>
           <h2 class="sect-title">Registro Formal das Deliberações</h2>
@@ -385,7 +388,7 @@ footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin
   <section id="deliberacoes">
     <div class="sect-header">
       <div class="sect-title-wrap">
-        <div class="sect-num">08</div>
+        <div class="sect-num">07</div>
         <div>
           <p class="sect-eyebrow">Síntese Executiva</p>
           <h2 class="sect-title" id="delib-title">Deliberações Consolidadas</h2>
@@ -411,8 +414,7 @@ const TABS = [
   {id:"criticos",label:"Pendências"},
   {id:"cronograma",label:"Cronograma"},
   {id:"ambientes",label:"Matriz"},
-  {id:"extra",label:"Extra-Escopo"},
-  {id:"pendencias",label:"Pendências"},
+  {id:"extra",label:"Impactos"},
   {id:"plano",label:"Plano de Ação"},
   {id:"ata",label:"Ata"},
   {id:"deliberacoes",label:"Deliberações"},
@@ -480,7 +482,7 @@ setText("foot-r", val(m.footerNote, "Fechamento semanal toda quinta-feira · Env
 setText("criticos-desc", sectionTexts.criticos || sectionTexts.pontosCriticos || "Diagnóstico direto dos fatores que determinam a viabilidade do prazo. Ordenados por nível de criticidade.");
 setText("cronograma-desc", sectionTexts.cronograma || "Caminho crítico e frentes com baseline renegociado.");
 setText("ambientes-desc", sectionTexts.ambientes || "Consolidação dos itens por responsável, separando ações em aberto, informações, concluídas e prazos críticos.");
-setText("extra-desc", sectionTexts.extraEscopo || "Intervenções técnicas executadas além do escopo/check-list, identificadas em campo.");
+setText("extra-desc", sectionTexts.extraEscopo || "Separação gerencial das pendências por impacto em prazo, custo, projeto/definição e documentação/contratos.");
 setText("pendencias-title", sectionTexts.pendenciasTitle || "Pendências TOOLS / Cliente / Projetistas / Fornecedores");
 setText("pendencias-desc", sectionTexts.pendencias || "Decisões e definições pendentes que podem impactar prazo, custo, qualidade ou liberação de frentes.");
 setText("plano-title", sectionTexts.planoTitle || "Plano de Ação Semanal");
@@ -606,29 +608,73 @@ if (matrixEl) {
     </table>` : `<div class="matrix-empty">Nenhum responsável identificado para montagem da matriz.</div>`;
 }
 
-// Extra
-const extraEscopo = arr(DATA.extraEscopo);
-document.getElementById("extra-grid").innerHTML = extraEscopo.length ? extraEscopo.map((e,idx)=>`
-  <div class="card extra">
-    <div class="extra-head"><span class="id-mono" style="color:var(--brand-deep)">${esc(e.id || String(idx + 1).padStart(2,"0"))}</span>${sticker("moderado","Extra-Escopo")}</div>
-    <h3>${esc(e.title)}</h3>
-    <p>${esc(e.body || e.description)}</p>
-    <div class="tag-row" style="margin-top:1rem">${arr(e.tags).map(t=>sticker("",t)).join("")}</div>
-  </div>`).join("") : `<div class="card extra"><h3>Nenhum extra-escopo registrado</h3><p>Não houve registro de atividades fora do escopo/check-list para a semana.</p></div>`;
-setText("extra-note", val(DATA.extraEscopoNote, "Sem observação contratual adicional registrada."));
+// Pendências por Tipo de Impacto
+const impactosPendencias = arr(DATA.impactosPendencias);
+const impactGrid = document.getElementById("impact-grid");
+function impactKindInfo(group){
+  const raw = String(group.title || group.type || "").toLowerCase();
+  if(raw.includes("prazo")) return {label:"Prazo", cls:"prazo"};
+  if(raw.includes("custo")) return {label:"Custo", cls:"custo"};
+  if(raw.includes("projeto") || raw.includes("defini")) return {label:"Projeto", cls:"projeto"};
+  if(raw.includes("document") || raw.includes("contrat") || raw.includes("art")) return {label:"Documental", cls:"documental"};
+  return {label:"Impacto", cls:""};
+}
+function impactLevelInfo(item){
+  const raw = String(item.level || item.priority || item.status || "").toLowerCase();
+  if(raw.includes("crít") || raw.includes("crit") || raw.includes("bloque")) return {label:"Crítico", cls:"critico"};
+  if(raw.includes("alto") || raw.includes("alta") || raw.includes("atras")) return {label:"Alto", cls:"alto"};
+  if(raw.includes("inform")) return {label:"Info", cls:"info"};
+  return {label: item.status || item.level || "Aberto", cls:""};
+}
+function pluralItens(n){ return `${n} ${n === 1 ? "item" : "itens"}`; }
+if (impactGrid) {
+  impactGrid.innerHTML = impactosPendencias.length ? impactosPendencias.map(group => {
+    const items = arr(group.items);
+    const kind = impactKindInfo(group);
+    return `<article class="card impact-card">
+      <div class="impact-head">
+        <div class="impact-title-block">
+          <span class="impact-kind ${esc(kind.cls)}">${esc(kind.label)}</span>
+          <h3>${esc(group.title || group.type || "Tipo de impacto")}</h3>
+          <p class="impact-desc">${esc(group.description || "Pendências classificadas por impacto gerencial.")}</p>
+        </div>
+        <span class="impact-count">${esc(pluralItens(items.length))}</span>
+      </div>
+      <div class="impact-divider"></div>
+      ${items.length ? `<ul class="impact-list">${items.map(item => {
+        const level = impactLevelInfo(item);
+        const meta = [item.responsible || item.responsavel, item.deadline || item.prazo].filter(Boolean).join(" · ");
+        return `<li>
+          <div class="impact-item-top">
+            <p class="impact-item-title">${esc(item.title || item.titulo)}</p>
+            <span class="impact-level ${esc(level.cls)}">${esc(level.label)}</span>
+          </div>
+          <p class="impact-item-desc">${esc(item.desc || item.description || item.descricao || "")}</p>
+          <p class="impact-item-meta"><strong>Resp:</strong> ${esc(meta || "Não informado")}</p>
+        </li>`;
+      }).join("")}</ul>` : `<div class="impact-empty">Nenhum item classificado neste tipo de impacto.</div>`}
+    </article>`;
+  }).join("") : `<article class="card impact-card"><span class="impact-kind">Impacto</span><h3>Nenhuma pendência classificada por impacto</h3><p class="impact-desc">Não foram identificados itens em aberto suficientes para esta análise.</p></article>`;
+}
 
 // Pendências
+// A antiga aba visual de pendências foi removida. Mantemos este bloco
+// protegido apenas para compatibilidade caso algum template antigo ainda
+// contenha #pend-list.
 const pendencias = arr(DATA.pendenciasTools || DATA.pendencias);
-document.getElementById("pend-list").innerHTML = pendencias.length ? pendencias.map((p,idx)=>`
-  <div class="pend">
-    <span class="id">${esc(p.id || String(idx + 1).padStart(2,"0"))}</span>
-    <div>
-      <p class="t" style="margin:0">${esc(p.title)}</p>
-      <p class="d">${esc(p.desc || p.description)}</p>
-      <p class="a" style="margin:0">${esc(p.area || p.responsible || p.responsavel || "")}</p>
-    </div>
-    ${sticker(levelToTone[p.level]||levelToTone[String(p.level||'').toLowerCase()]||"neutral",p.level || p.priority || "Não informado")}
-  </div>`).join("") : `<div class="pend"><span class="id">—</span><div><p class="t" style="margin:0">Nenhuma pendência registrada</p><p class="d">Não há pendências relevantes informadas para a semana.</p></div>${sticker("ok","Sem pendência")}</div>`;
+const pendListEl = document.getElementById("pend-list");
+if (pendListEl) {
+  pendListEl.innerHTML = pendencias.length ? pendencias.map((p,idx)=>`
+    <div class="pend">
+      <span class="id">${esc(p.id || String(idx + 1).padStart(2,"0"))}</span>
+      <div>
+        <p class="t" style="margin:0">${esc(p.title)}</p>
+        <p class="d">${esc(p.desc || p.description)}</p>
+        <p class="a" style="margin:0">${esc(p.area || p.responsible || p.responsavel || "")}</p>
+      </div>
+      ${sticker(levelToTone[p.level]||levelToTone[String(p.level||'').toLowerCase()]||"neutral",p.level || p.priority || "Não informado")}
+    </div>`).join("") : `<div class="pend"><span class="id">—</span><div><p class="t" style="margin:0">Nenhuma pendência registrada</p><p class="d">Não há pendências relevantes informadas para a semana.</p></div>${sticker("ok","Sem pendência")}</div>`;
+}
 
 // Plano
 const plano = arr(DATA.planoAcao);

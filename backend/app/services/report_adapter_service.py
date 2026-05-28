@@ -664,7 +664,27 @@ def _dedupe_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             order.append(key)
         else:
             merged[key] = _merge_item(merged[key], item)
-    return [merged[k] for k in order]
+
+    first_pass = [merged[k] for k in order]
+
+    # Segunda passada: elimina duplicidades entre itens pobres vindos do GPT
+    # e itens completos reconstruídos pelo OCR. O primeiro merge por
+    # número de ata/item é conservador; esta etapa junta registros com
+    # mesmo título + status, priorizando o item que tem Nº Ata/Data Item/Prazo.
+    by_title_status: dict[str, dict[str, Any]] = {}
+    order2: list[str] = []
+    for item in first_pass:
+        title = _norm_key(_atividade_titulo(item))
+        status = _norm_key(normalizar_status(item.get("status")) or item.get("status"))
+        if not title or _is_placeholder(title):
+            title = _norm_key(_atividade_descricao(item))[:80]
+        key = f"{title}|{status}"
+        if key not in by_title_status:
+            by_title_status[key] = item
+            order2.append(key)
+        else:
+            by_title_status[key] = _merge_item(by_title_status[key], item)
+    return [by_title_status[k] for k in order2]
 
 
 def _adapt_item_validado(item: dict[str, Any]) -> dict[str, Any]:
@@ -918,7 +938,7 @@ def _build_section_texts(dados: dict[str, Any], pendencias: list[dict[str, Any]]
         "criticos": "Todos os itens da ata com status Em andamento, organizados com responsável, prazo e ação obrigatória.",
         "cronograma": "Itens da ata atual, com início pela coluna Data Item, término pelo prazo e avanço calculado pela janela de datas.",
         "ambientes": "Consolidação dos itens por responsável, separando ações em aberto, informações, concluídas e prazos críticos.",
-        "extraEscopo": "Intervenções técnicas identificadas em campo ou registradas em ata.",
+        "extraEscopo": "Classificação das pendências por impacto em prazo, custo, projeto/definição e documentação/contratos.",
         "pendenciasTitle": "Pendências TOOLS / Cliente / Projetistas / Fornecedores",
         "pendencias": f"{len(pendencias)} decisões, entregas ou liberações pendentes exigem acompanhamento.",
         "planoTitle": "Plano de Ação Semanal",
@@ -965,59 +985,85 @@ def _build_critical_points(dados: dict[str, Any], atividades: list[dict[str, Any
         )
     return pontos
 
-def _build_phases(dados: dict[str, Any], atividades: list[dict[str, Any]], current_ata: Any = None) -> list[dict[str, Any]]:
-    explicit = []
-    for item in _as_list(dados.get("cronograma_summary") or dados.get("phases")):
-        if isinstance(item, dict):
-            explicit.append(item)
-    if explicit:
-        return explicit
+def _is_item_da_ata_atual(item: dict[str, Any], current_ata: Any = None) -> bool:
+    """Retorna True somente quando a coluna Nº Ata do item bate com a ata processada."""
+    return bool(current_ata and _ata_equal(item.get("numero_ata_origem"), current_ata))
 
-    informativos = [a for a in atividades if normalizar_status(a.get("status")) == "informativo"]
-    concluidos = [a for a in atividades if normalizar_status(a.get("status")) == "concluido"]
-    total = len(atividades)
+
+def _build_phases(dados: dict[str, Any], atividades: list[dict[str, Any]], current_ata: Any = None) -> list[dict[str, Any]]:
+    # A aba 2 deve refletir apenas os itens cujo Nº Ata corresponde à ata digitada/processada.
+    atuais = [a for a in atividades if isinstance(a, dict) and _is_item_da_ata_atual(a, current_ata)]
+    informativos = [a for a in atuais if normalizar_status(a.get("status")) == "informativo"]
+    concluidos = [a for a in atuais if normalizar_status(a.get("status")) == "concluido"]
+    andamento = [a for a in atuais if normalizar_status(a.get("status")) == "andamento"]
+    total = len(atuais)
     total_base = max(total, 1)
-    atuais = [a for a in atividades if _ata_equal(a.get("numero_ata_origem"), current_ata) or a.get("ata_atual") is True]
     percent_concluidos = round((len(concluidos) / total_base) * 100) if total else 0
 
     return [
         {
-            "name": "Itens da ata",
+            "name": "Itens da ata atual",
             "value": str(total),
             "progress": None,
-            "note": "Contagem geral de todos os itens identificados na ata.",
+            "note": "Contagem dos itens cujo Nº Ata corresponde à ata processada.",
         },
         {
             "name": "Itens informação",
             "value": str(len(informativos)),
             "progress": None,
-            "note": "Quantidade de itens com status Informação.",
+            "note": "Quantidade de itens da ata atual com status Informação.",
         },
         {
             "name": "Itens concluídos",
             "value": f"{percent_concluidos}%",
             "progress": percent_concluidos,
-            "note": f"{len(concluidos)} itens concluídos com base em {total} item(ns) da ata.",
+            "note": f"{len(concluidos)} itens concluídos com base em {total} item(ns) da ata atual.",
         },
         {
-            "name": "Itens da ata atual",
-            "value": str(len(atuais)),
+            "name": "Em andamento",
+            "value": str(len(andamento)),
             "progress": None,
-            "note": "Itens cujo Nº Ata corresponde à ata processada.",
+            "note": "Itens da ata atual com status Em andamento.",
         },
     ]
 
+
+def _schedule_group_for_item(item: dict[str, Any]) -> str:
+    titulo = _norm_key(_atividade_titulo(item))
+    descricao = _norm_key(_atividade_descricao(item))
+    combined = f"{titulo} {descricao}"
+    if any(word in combined for word in ["art", "contrato", "assinatura", "fornecedor", "pagamento", "sinal"]):
+        return "CONTRATOS E ARTS"
+    if any(word in combined for word in ["cronograma"]):
+        return "CRONOGRAMA"
+    if any(word in combined for word in ["mapa", "mao de obra", "instalacoes eletricas", "hidraulicas"]):
+        return "CONTRATAÇÕES E MAPAS"
+    if any(word in combined for word in ["projeto", "arquitetura", "definicao", "definicoes"]):
+        return "PROJETOS E DEFINIÇÕES"
+    if any(word in combined for word in ["demolicao", "caixilho", "revestimento", "estanqueidade", "moveis", "garagem"]):
+        return "DEMOLIÇÃO"
+    return "OUTROS ITENS DA ATA"
+
+
 def _build_schedule(dados: dict[str, Any], atividades: list[dict[str, Any]], current_ata: Any = None, reference_date: Any = None) -> list[dict[str, Any]]:
-    """Cronograma da ATA: somente itens cujo Nº Ata corresponde à ata atual."""
-    rows: list[dict[str, Any]] = []
-    for item in atividades:
-        if not isinstance(item, dict):
-            continue
-        if current_ata and not (_ata_equal(item.get("numero_ata_origem"), current_ata) or item.get("ata_atual") is True):
-            continue
+    """Cronograma da ATA: somente itens cuja coluna Nº Ata corresponde à ata atual, agrupados por tema."""
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    group_order = [
+        "PROJETOS E DEFINIÇÕES",
+        "DEMOLIÇÃO",
+        "CONTRATOS E ARTS",
+        "CRONOGRAMA",
+        "CONTRATAÇÕES E MAPAS",
+        "OUTROS ITENS DA ATA",
+    ]
+
+    current_items = [item for item in atividades if isinstance(item, dict) and _is_item_da_ata_atual(item, current_ata)]
+    current_items.sort(key=lambda item: int(_text(item.get("numero_item"), "999") or 999) if str(_text(item.get("numero_item"), "999")).isdigit() else 999)
+
+    for item in current_items:
         start_value = item.get("data_abertura") or item.get("inicio")
         end_value = item.get("prazo_vigente") or item.get("prazo") or item.get("termino") or item.get("prazo_limite")
-        rows.append(
+        grouped[_schedule_group_for_item(item)].append(
             {
                 "item": _atividade_titulo(item),
                 "resp": _atividade_responsavel(item),
@@ -1029,9 +1075,15 @@ def _build_schedule(dados: dict[str, Any], atividades: list[dict[str, Any]], cur
             }
         )
 
-    if rows:
-        return [{"group": "Itens da ATA", "rows": rows}]
-    return []
+    schedule: list[dict[str, Any]] = []
+    for group in group_order:
+        rows = grouped.get(group)
+        if rows:
+            schedule.append({"group": group, "rows": rows})
+    for group, rows in grouped.items():
+        if group not in group_order and rows:
+            schedule.append({"group": group, "rows": rows})
+    return schedule
 
 def _build_ambientes(dados: dict[str, Any], atividades: list[dict[str, Any]]) -> list[dict[str, Any]]:
     output = []
@@ -1172,6 +1224,108 @@ def _build_matriz_responsabilidades(dados: dict[str, Any], atividades: list[dict
     )
     return rows
 
+
+
+def _impact_item_payload(item: dict[str, Any], idx: int) -> dict[str, Any]:
+    prazo = _atividade_prazo(item)
+    responsavel = _atividade_responsavel(item)
+    return {
+        "id": _text(item.get("id") or item.get("id_item"), f"{idx:02d}"),
+        "title": _atividade_titulo(item),
+        "desc": _compact_text(_atividade_descricao(item), 520),
+        "responsible": responsavel,
+        "deadline": prazo,
+        "status": _status_label(item.get("status")),
+        "level": _level_label(item.get("criticidade") or item.get("prioridade") or item.get("level")),
+    }
+
+
+def _impact_types_for_item(item: dict[str, Any]) -> list[str]:
+    """Classifica pendências por impacto gerencial usando texto da ata."""
+    titulo = _atividade_titulo(item)
+    descricao = _atividade_descricao(item)
+    observacao = _text(item.get("observacoes") or item.get("observacao") or item.get("historico_cronologico"))
+    texto = _norm_key(f"{titulo} {descricao} {observacao}")
+    tipos: list[str] = []
+
+    if any(word in texto for word in [
+        "cronograma", "demolicao", "liberacao", "liberar", "execucao", "executar", "mapa",
+        "mao de obra", "instalacoes", "hidraulicas", "obra", "atraso", "entrega", "enviar",
+        "retirada", "retirar", "moveis", "garagem", "estanqueidade",
+    ]):
+        tipos.append("prazo")
+
+    if any(word in texto for word in [
+        "orcamento", "custo", "pagamento", "sinal", "substituicao", "substituir", "reforma",
+        "escopo", "fornecedor", "fornecedores", "cupins", "batentes", "contratacao",
+    ]):
+        tipos.append("custo")
+
+    if any(word in texto for word in [
+        "arquitetura", "projetista", "projeto", "cliente", "definicao", "definicoes", "validacao",
+        "validar", "aprovacao", "aprovado", "aprovou", "caixilho", "caixilhos", "revestimento",
+        "detalhamento", "fachada", "tijolinho", "terraco", "sacada",
+    ]):
+        tipos.append("projeto")
+
+    if any(word in texto for word in [
+        "contrato", "contratos", "art", "arts", "assinatura", "assinar", "alvara", "responsavel tecnico",
+        "documento", "documental", "vinculacao", "vinculada", "vinculadas", "testemunhas", "contratante",
+        "contratada", "interveniente",
+    ]):
+        tipos.append("documental")
+
+    return tipos or ["prazo"]
+
+
+def _build_impactos_pendencias(atividades: list[dict[str, Any]], pendencias: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aba 04: agrupa todas as pendências por tipo de impacto.
+
+    Usa todos os itens não concluídos da ata, inclusive informativos relevantes,
+    e não apenas os itens da ata atual.
+    """
+    base_items = [item for item in atividades if isinstance(item, dict) and normalizar_status(item.get("status")) != "concluido"]
+    if not base_items:
+        base_items = [item for item in pendencias if isinstance(item, dict) and normalizar_status(item.get("status")) != "concluido"]
+
+    groups: dict[str, dict[str, Any]] = {
+        "prazo": {
+            "id": "prazo",
+            "title": "Impacto em prazo",
+            "description": "Itens que podem atrasar contratação, demolição, liberação de projeto ou execução.",
+            "items": [],
+        },
+        "custo": {
+            "id": "custo",
+            "title": "Impacto em custo",
+            "description": "Itens que dependem de orçamento, aprovação financeira, substituição ou definição de escopo.",
+            "items": [],
+        },
+        "projeto": {
+            "id": "projeto",
+            "title": "Impacto em projeto/definição",
+            "description": "Itens que dependem de arquitetura, cliente, projetistas ou validações técnicas.",
+            "items": [],
+        },
+        "documental": {
+            "id": "documental",
+            "title": "Impacto documental/contratual",
+            "description": "Contratos, ARTs, assinaturas, vínculo de responsabilidade técnica e documentos formais.",
+            "items": [],
+        },
+    }
+
+    seen_by_group: dict[str, set[str]] = {key: set() for key in groups}
+    for idx, item in enumerate(base_items, start=1):
+        payload = _impact_item_payload(item, idx)
+        item_key = _atividade_key(item)
+        for tipo in _impact_types_for_item(item):
+            if item_key in seen_by_group[tipo]:
+                continue
+            seen_by_group[tipo].add(item_key)
+            groups[tipo]["items"].append(payload)
+
+    return [groups[key] for key in ["prazo", "custo", "projeto", "documental"]]
 
 def _build_extra(dados: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
     items = []
@@ -1461,7 +1615,7 @@ def _merge_with_gpt3(base: dict[str, Any], gpt3: dict[str, Any] | None) -> dict[
             merged[key] = current
 
     # Listas do GPT3 só entram quando o adaptador não conseguiu montar nada relevante.
-    for key in ["criticalPoints", "phases", "schedule", "ambientes", "matrizResponsabilidades", "extraEscopo", "pendenciasTools", "planoAcao", "ata", "deliberacoes", "historicoMudancas"]:
+    for key in ["criticalPoints", "phases", "schedule", "ambientes", "matrizResponsabilidades", "impactosPendencias", "extraEscopo", "pendenciasTools", "planoAcao", "ata", "deliberacoes", "historicoMudancas"]:
         incoming = gpt3.get(key)
         if not isinstance(incoming, list):
             continue
@@ -1513,6 +1667,7 @@ def build_report_json_from_gpt2(
         "schedule": _build_schedule(dados, atividades, current_ata=relatorio.numero_ata, reference_date=relatorio.data_referencia),
         "ambientes": _build_ambientes(dados, atividades),
         "matrizResponsabilidades": _build_matriz_responsabilidades(dados, atividades, relatorio.data_referencia),
+        "impactosPendencias": _build_impactos_pendencias(atividades, pendencias),
         "extraEscopo": extra,
         "extraEscopoNote": extra_note,
         "pendenciasTools": _build_pendencias_tools(pendencias),
