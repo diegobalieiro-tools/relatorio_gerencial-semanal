@@ -1226,13 +1226,69 @@ def _build_matriz_responsabilidades(dados: dict[str, Any], atividades: list[dict
 
 
 
-def _impact_item_payload(item: dict[str, Any], idx: int) -> dict[str, Any]:
+def _impact_reason(item: dict[str, Any], tipo: str) -> str:
+    """Gera análise breve do motivo do impacto, evitando repetir a descrição da pendência."""
+    titulo_norm = _norm_key(_atividade_titulo(item))
+    texto = _norm_key(
+        f"{_atividade_titulo(item)} {_atividade_descricao(item)} "
+        f"{item.get('observacoes') or item.get('observacao') or item.get('historico_cronologico') or ''}"
+    )
+    prazo = _atividade_prazo(item)
+
+    if tipo == "prazo":
+        if "cronograma" in texto:
+            return f"Afeta a programação das frentes e a previsibilidade das próximas liberações até {prazo}." if prazo != INFORMACAO_NAO_INFORMADA else "Afeta a programação das frentes e a previsibilidade das próximas liberações."
+        if "demolicao" in texto:
+            return "Pode condicionar a liberação e o sequenciamento dos serviços de demolição."
+        if any(word in texto for word in ["mapa", "mao de obra", "instalacoes"]):
+            return f"Impacta o planejamento de equipe/instalações e precisa ser consolidado até {prazo}." if prazo != INFORMACAO_NAO_INFORMADA else "Impacta o planejamento de equipe/instalações."
+        if any(word in texto for word in ["retirada", "retirar", "moveis", "garagem"]):
+            return "Pode restringir a liberação física da frente de demolição/execução."
+        return f"Pendência aberta com potencial de interferir no prazo previsto até {prazo}." if prazo != INFORMACAO_NAO_INFORMADA else "Pendência aberta com potencial de interferir no prazo da obra."
+
+    if tipo == "custo":
+        if any(word in texto for word in ["orcamento", "custo"]):
+            return "Depende de orçamento ou validação de custo para definição do caminho executivo."
+        if any(word in texto for word in ["pagamento", "sinal"]):
+            return "Depende de condição financeira/contratual para liberação junto a fornecedores."
+        if any(word in texto for word in ["substituicao", "reforma", "cupins", "batentes"]):
+            return "Pode alterar escopo e custo por necessidade de substituição ou reforma."
+        if "fornecedor" in texto or "contratacao" in texto:
+            return "Pode afetar contratação de fornecedores e composição de custos."
+        return "Possui potencial de impacto financeiro ou necessidade de validação de escopo."
+
+    if tipo == "projeto":
+        if any(word in texto for word in ["arquitetura", "projeto", "projetista"]):
+            return "Depende de definição técnica/projeto para liberar cotação, contratação ou execução."
+        if any(word in texto for word in ["cliente", "aprovacao", "validacao", "definicao"]):
+            return "Depende de aprovação ou definição do cliente para continuidade do item."
+        if any(word in texto for word in ["caixilho", "caixilhos", "fachada"]):
+            return "Depende de definição arquitetônica/cliente sobre intervenção na fachada."
+        if any(word in texto for word in ["revestimento", "sacada", "terraco", "estanqueidade"]):
+            return "Depende de validação técnica/cliente para confirmar solução da frente."
+        return "Depende de definição técnica, cliente ou projetista para avanço seguro."
+
+    if tipo == "documental":
+        if "art" in texto or "arts" in texto:
+            return "Exige ART/documentação vinculada à responsabilidade técnica da obra."
+        if "contrato" in texto or "assinatura" in texto:
+            return "Exige formalização contratual ou assinatura antes da liberação do serviço."
+        if "pagamento" in texto or "sinal" in texto:
+            return "Está condicionado à formalização documental antes de liberação financeira."
+        if any(word in texto for word in ["responsavel tecnico", "alvara", "vinculacao"]):
+            return "Relaciona-se à regularização documental e responsabilidade técnica."
+        return "Requer controle documental/contratual para manter rastreabilidade e conformidade."
+
+    return "Pendência classificada por potencial impacto gerencial."
+
+
+def _impact_item_payload(item: dict[str, Any], idx: int, tipo: str = "") -> dict[str, Any]:
     prazo = _atividade_prazo(item)
     responsavel = _atividade_responsavel(item)
     return {
         "id": _text(item.get("id") or item.get("id_item"), f"{idx:02d}"),
         "title": _atividade_titulo(item),
-        "desc": _compact_text(_atividade_descricao(item), 520),
+        "desc": _impact_reason(item, tipo),
         "responsible": responsavel,
         "deadline": prazo,
         "status": _status_label(item.get("status")),
@@ -1317,13 +1373,12 @@ def _build_impactos_pendencias(atividades: list[dict[str, Any]], pendencias: lis
 
     seen_by_group: dict[str, set[str]] = {key: set() for key in groups}
     for idx, item in enumerate(base_items, start=1):
-        payload = _impact_item_payload(item, idx)
         item_key = _atividade_key(item)
         for tipo in _impact_types_for_item(item):
             if item_key in seen_by_group[tipo]:
                 continue
             seen_by_group[tipo].add(item_key)
-            groups[tipo]["items"].append(payload)
+            groups[tipo]["items"].append(_impact_item_payload(item, idx, tipo))
 
     return [groups[key] for key in ["prazo", "custo", "projeto", "documental"]]
 
