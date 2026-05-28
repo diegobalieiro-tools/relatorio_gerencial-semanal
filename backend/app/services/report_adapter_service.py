@@ -59,7 +59,7 @@ _DATE_RE = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
 _STATUS_RE = re.compile(r"\b(Em\s+andamento|Conclu[ií]da|Conclu[ií]do|Informação|Informacao|Pendente|Atrasada|Bloqueante)\b", re.IGNORECASE)
 _ROW_START_RE = re.compile(r"(?m)^\s*(\d{1,3})\s+(\d{3})\s+(\d{2}/\d{2}/\d{4})\s+(.*)$")
 _SECTION_ALIASES = {
-    "pendentes": "Itens Ata Anterior / Pendentes",
+    "pendentes": "Itens Ata Anterior / Itens Pendentes",
     "atuais": "Itens Ata Atual",
     "concluidos": "Itens Concluídos e Informativos",
 }
@@ -67,6 +67,34 @@ _SECTION_ALIASES = {
 
 def _all_dates(text: str) -> list[str]:
     return _DATE_RE.findall(text or "")
+
+
+def _compact_text(value: Any, max_len: int | None = None) -> str:
+    """Normaliza quebras de linha/espacos para textos de card e evita blocos ilegíveis."""
+    txt = _text(value)
+    if not txt:
+        return ""
+    txt = re.sub(r"\s+", " ", txt).strip()
+    # Remove ruídos típicos que aparecem quando o OCR cola cabeçalho/rodapé na última linha.
+    txt = re.sub(r"\s+Disciplina\s+E-mail\s+.*$", "", txt, flags=re.IGNORECASE)
+    txt = re.sub(r"\s+ATA DE REUNIÃO\s+-.*$", "", txt, flags=re.IGNORECASE)
+    txt = re.sub(r"\s+---\s*Página\s+\d+\s*---.*$", "", txt, flags=re.IGNORECASE)
+    if max_len and len(txt) > max_len:
+        txt = txt[: max_len - 1].rstrip() + "…"
+    return txt
+
+
+def _canonical_category_value(value: Any) -> str:
+    """Padroniza nomes de seção para não duplicar itens iguais por rótulos diferentes."""
+    raw = _text(value, "Itens da Semana")
+    key = _norm_key(raw)
+    if "concluido" in key or "concluidos" in key or "informativo" in key:
+        return "Itens Concluídos e Informativos"
+    if "ata atual" in key or key in {"itens atuais", "atuais", "itens atual"}:
+        return "Itens Ata Atual"
+    if "ata anterior" in key or "pendente" in key or key in {"itens pendentes", "pendentes"}:
+        return "Itens Ata Anterior / Itens Pendentes"
+    return raw
 
 
 def _looks_like_responsavel_line(line: str) -> bool:
@@ -187,7 +215,7 @@ def _parse_ocr_section_rows(section_text: str, section_key: str, ata_atual: str 
         # Remove ruídos de rodapé/cabeçalho frequentemente capturados após o último item.
         clean_lines: list[str] = []
         for ln in lines:
-            if re.search(r"^(Disciplina|Construtora\s+\S+@|ATA DE REUNIÃO|Cliente / Obra|Gerenciamento\s+\S+@)", ln, re.IGNORECASE):
+            if re.search(r"^(Disciplina|Construtora\s+\S+@|ATA DE REUNIÃO|Cliente / Obra|Gerenciamento\s+\S+@|---\s*Página|\[)", ln, re.IGNORECASE):
                 break
             clean_lines.append(ln)
         lines = clean_lines
@@ -250,9 +278,9 @@ def _parse_ocr_section_rows(section_text: str, section_key: str, ata_atual: str 
                 "numero_ata_origem": numero_ata,
                 "data_abertura": data_item,
                 "titulo": titulo,
-                "descricao": descricao,
-                "observacoes": observacao,
-                "evidencia": block[:1200],
+                "descricao": _compact_text(descricao, 700),
+                "observacoes": _compact_text(observacao, 900),
+                "evidencia": _compact_text(block, 1400),
                 "categoria": _SECTION_ALIASES.get(section_key, "Itens da Ata"),
                 "secao": _SECTION_ALIASES.get(section_key, "Itens da Ata"),
                 "status": status,
@@ -277,37 +305,38 @@ def _parse_ocr_section_rows(section_text: str, section_key: str, ata_atual: str 
 def _collect_atividades_from_texto_ocr(extracao: dict[str, Any] | None, ata_atual: str | None = None) -> list[dict[str, Any]]:
     if not isinstance(extracao, dict):
         return []
-    texts = []
-    # Usa tanto a saída validada do GPT 1 quanto o texto bruto extraído dos arquivos.
-    # O texto bruto é essencial para não perder linhas da tabela quando o GPT 1 resume demais.
-    for key in [
-        "texto_validado",
-        "texto_extraido",
-        "raw_text",
-        "conteudo_textual",
-        "arquivos_contexto_extraido",
-        "files_context_text",
-        "texto_bruto_arquivos",
-    ]:
+
+    # Prioridade máxima para o texto bruto dos arquivos. Ele preserva melhor a tabela.
+    # Não concatenar texto bruto + texto_validado: isso duplicava a ata e contaminava o
+    # corpo dos itens com linhas repetidas, fazendo o relatório 7 quebrar/ficar ilegível.
+    raw_texts: list[str] = []
+    for key in ["arquivos_contexto_extraido", "files_context_text", "texto_bruto_arquivos"]:
         txt = _text(extracao.get(key))
         if txt:
-            texts.append(txt)
-    # Algumas leituras guardam tabelas reconstruídas como linhas dentro de tabelas_identificadas.
-    for tabela in _as_list(extracao.get("tabelas_identificadas")):
-        if not isinstance(tabela, dict):
-            continue
-        linhas = tabela.get("linhas")
-        if isinstance(linhas, list) and linhas:
-            texts.append("\n".join(str(l) for l in linhas))
-    combined = "\n".join(texts)
-    if not combined:
-        return []
-    sections = _split_ocr_sections(combined)
-    parsed: list[dict[str, Any]] = []
-    for key in ["pendentes", "atuais", "concluidos"]:
-        parsed.extend(_parse_ocr_section_rows(sections.get(key, ""), key, ata_atual=ata_atual))
-    return _dedupe_items(parsed)
+            raw_texts.append(txt)
 
+    fallback_texts: list[str] = []
+    for key in ["texto_validado", "texto_extraido", "raw_text", "conteudo_textual"]:
+        txt = _text(extracao.get(key))
+        if txt:
+            fallback_texts.append(txt)
+
+    if not raw_texts:
+        for tabela in _as_list(extracao.get("tabelas_identificadas")):
+            if not isinstance(tabela, dict):
+                continue
+            linhas = tabela.get("linhas")
+            if isinstance(linhas, list) and linhas:
+                fallback_texts.append("\n".join(str(l) for l in linhas))
+
+    texts = raw_texts or fallback_texts
+    parsed: list[dict[str, Any]] = []
+    for text in texts:
+        sections = _split_ocr_sections(text)
+        for key in ["pendentes", "atuais", "concluidos"]:
+            parsed.extend(_parse_ocr_section_rows(sections.get(key, ""), key, ata_atual=ata_atual))
+
+    return _dedupe_items(parsed)
 
 def _nivel_template(value: Any) -> str:
     nivel = normalizar_criticidade(value) or "moderado"
@@ -375,20 +404,95 @@ def _atividade_descricao(item: dict[str, Any]) -> str:
         _text(item.get("descricao") or item.get("description")),
         _text(item.get("observacoes") or item.get("observacao")),
         _text(item.get("historico_cronologico")),
-        _text(item.get("evidencia")),
     ]
     texto = " ".join(p for p in partes if p).strip()
-    return texto or "Registro da ata para acompanhamento."
+    # Evidência é usada só quando não existe descrição; colocar a evidência junto
+    # deixava o card com a linha inteira da tabela duplicada.
+    if not texto:
+        texto = _text(item.get("evidencia"))
+    return _compact_text(texto, 900) or "Registro da ata para acompanhamento."
+
+
+def _split_historico_atualizacoes(value: Any) -> list[str]:
+    """Separa observações de ata em tópicos por data (05.05, 12.05, 19.05...)."""
+    txt = _compact_text(value, 1400)
+    if not txt:
+        return []
+    parts = re.split(r"(?=\b\d{2}\.\d{2}\s*-)", txt)
+    updates = []
+    for part in parts:
+        part = part.strip(" ;")
+        if re.match(r"^\d{2}\.\d{2}\s*-", part):
+            updates.append(part.rstrip(" .") + ".")
+    return updates
+
+
+def _strip_update_date(value: str) -> str:
+    return re.sub(r"^\s*\d{2}\.\d{2}\s*-\s*", "", value or "").strip()
+
+
+def _verbo_para_infinitivo(frase: str) -> str:
+    replacements = [
+        (r"^Cateo\s+enviar[áa]", "CATEO enviar"),
+        (r"^A\s+Cateo\s+enviar[áa]", "CATEO enviar"),
+        (r"^Cateo\s+realizar[áa]", "CATEO realizar"),
+        (r"^A\s+Cateo\s+realizar[áa]", "CATEO realizar"),
+        (r"^Cateo\s+atualizar[áa]", "CATEO atualizar"),
+        (r"^A\s+Cateo\s+atualizar[áa]", "CATEO atualizar"),
+        (r"^Projetista\s+enviar[áa]", "projetista enviar"),
+        (r"^Arquitetura\s+realizar[áa]", "arquitetura realizar"),
+        (r"^Cliente\s+retirar[áa]?", "cliente retirar"),
+    ]
+    out = frase.strip()
+    for pattern, repl in replacements:
+        out = re.sub(pattern, repl, out, flags=re.IGNORECASE)
+    return out
+
+
+def _atividade_corpo_executivo(item: dict[str, Any]) -> str:
+    """Corpo do card: descrição base + histórico em tópicos quando houver."""
+    base = _compact_text(item.get("descricao") or item.get("description"), 700)
+    if not base:
+        base = _compact_text(item.get("evidencia"), 700) or "Registro da ata para acompanhamento."
+
+    historico_txt = _text(item.get("observacoes") or item.get("observacao") or item.get("historico_cronologico"))
+    updates = _split_historico_atualizacoes(historico_txt)
+    if not updates:
+        return base
+
+    bullets = "\n".join(f"• {update}" for update in updates)
+    return f"{base}\n\nAtualizações:\n{bullets}"
 
 
 def _atividade_acao(item: dict[str, Any]) -> str:
-    return (
-        _text(item.get("proximos_passos"))
-        or _text(item.get("acao_recomendada"))
-        or _text(item.get("observacoes"))
-        or _text(item.get("observacao"))
-        or "Acompanhar responsável e prazo vigente."
-    )
+    """Gera ação curta e executiva, evitando repetir todo o histórico do card."""
+    explicit = _compact_text(item.get("proximos_passos") or item.get("acao_recomendada"), 240)
+    if explicit and len(_split_historico_atualizacoes(explicit)) <= 1:
+        return explicit
+
+    observacao = _text(item.get("observacoes") or item.get("observacao") or item.get("historico_cronologico"))
+    updates = _split_historico_atualizacoes(observacao)
+    latest = _strip_update_date(updates[-1]) if updates else _compact_text(observacao, 240)
+    prazo = _atividade_prazo(item)
+    responsavel = _atividade_responsavel(item)
+
+    if latest:
+        lower = latest.lower()
+        if lower.startswith("aguardando"):
+            return latest.rstrip(".") + "."
+        if any(word in lower for word in ["enviará", "enviara", "realizará", "realizara", "atualizará", "atualizara"]):
+            action = _verbo_para_infinitivo(latest)
+            if not action.lower().startswith("aguardando"):
+                action = f"Aguardando {action[0].lower() + action[1:] if action else action}"
+            return action.rstrip(".") + "."
+        if "aprov" in lower and "cliente" in lower:
+            return latest.rstrip(".") + "."
+        if len(latest) <= 180:
+            return latest.rstrip(".") + "."
+
+    if prazo != INFORMACAO_NAO_INFORMADA:
+        return f"Acompanhar {responsavel} para atendimento até {prazo}."
+    return "Acompanhar responsável e prazo vigente."
 
 
 def _atividade_prazo(item: dict[str, Any]) -> str:
@@ -406,7 +510,7 @@ def _atividade_responsavel(item: dict[str, Any]) -> str:
 
 
 def _atividade_categoria(item: dict[str, Any]) -> str:
-    return _text(item.get("categoria") or item.get("secao") or item.get("grupo") or item.get("ambiente"), "Itens da Semana")
+    return _canonical_category_value(item.get("categoria") or item.get("secao") or item.get("grupo") or item.get("ambiente") or "Itens da Semana")
 
 
 _PLACEHOLDER_TITLES = {
@@ -438,17 +542,22 @@ def _is_placeholder(value: Any) -> bool:
 
 
 def _item_quality(item: dict[str, Any]) -> int:
-    """Pontua a riqueza do item para escolher a versão mais informativa em merges."""
-    if not isinstance(item, dict):
-        return 0
     score = 0
-    for key in ["titulo", "title", "descricao", "description", "observacoes", "observacao", "historico_cronologico", "evidencia", "prazo_vigente", "prazo", "termino", "responsavel", "empresa_responsavel", "criticidade", "status"]:
+    for key in ["titulo", "title", "descricao", "description", "observacoes", "observacao", "historico_cronologico", "prazo_vigente", "prazo", "termino", "responsavel", "empresa_responsavel", "criticidade", "status"]:
         if _text(item.get(key)):
             score += 1
     if not _is_placeholder(_atividade_titulo(item)):
         score += 8
     if _text(item.get("descricao") or item.get("description")):
         score += 4
+    if _text(item.get("fonte")).upper() in {"PDF/OCR", "PDF", "OCR"}:
+        score += 6
+    if _norm_key(_atividade_categoria(item)) in {
+        _norm_key("Itens Ata Atual"),
+        _norm_key("Itens Ata Anterior / Itens Pendentes"),
+        _norm_key("Itens Concluídos e Informativos"),
+    }:
+        score += 3
     return score
 
 
@@ -467,10 +576,13 @@ def _merge_item(base: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any
 def _atividade_key(item: dict[str, Any]) -> str:
     titulo = _norm_key(_atividade_titulo(item))
     prazo = _norm_key(_atividade_prazo(item))
+    status = _norm_key(normalizar_status(item.get("status")) or item.get("status"))
     secao = _norm_key(_atividade_categoria(item))
     if _is_placeholder(titulo):
-        return f"{titulo}|{secao}|{prazo}|{_norm_key(_atividade_descricao(item))[:80]}"
-    return f"{titulo}|{secao}|{prazo}"
+        return f"{titulo}|{secao}|{prazo}|{status}|{_norm_key(_atividade_descricao(item))[:80]}"
+    # Não usar a seção como chave principal: o mesmo item vinha como "Itens atuais"
+    # pelo GPT2 e como "Itens Ata Atual" pelo OCR, gerando duplicidade.
+    return f"{titulo}|{prazo}|{status}"
 
 
 def _dedupe_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -512,8 +624,8 @@ def _adapt_item_validado(item: dict[str, Any]) -> dict[str, Any]:
         "descricao": descricao or "Registro da ata para acompanhamento.",
         "observacoes": observacoes,
         "evidencia": evidencia,
-        "categoria": secao,
-        "secao": secao,
+        "categoria": _canonical_category_value(secao),
+        "secao": _canonical_category_value(secao),
         "status": status,
         "criticidade": criticidade,
         "responsavel": _text(item.get("responsavel") or item.get("empresa_responsavel"), "Indefinido"),
@@ -610,7 +722,18 @@ def _collect_atividades(dados: dict[str, Any], extracao: dict[str, Any] | None =
     if atividades_gpt1 and _looks_weak_items([a for a in atividades if a not in atividades_gpt1], min_good=2):
         atividades = _dedupe_items(atividades_gpt1 + [a for a in atividades if not _is_placeholder(_atividade_titulo(a))])
 
-    return atividades
+    # Normaliza a seção após mesclagem, remove itens efetivamente vazios e deduplica de novo.
+    normalizadas: list[dict[str, Any]] = []
+    for item in atividades:
+        if not isinstance(item, dict) or _is_placeholder(_atividade_titulo(item)):
+            continue
+        item = dict(item)
+        categoria = _atividade_categoria(item)
+        item["categoria"] = categoria
+        item["secao"] = categoria
+        normalizadas.append(item)
+
+    return _dedupe_items(normalizadas)
 
 
 def _collect_pendencias(dados: dict[str, Any], atividades: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -784,7 +907,7 @@ def _build_critical_points(dados: dict[str, Any], atividades: list[dict[str, Any
                 "id": _text(item.get("id") or item.get("id_item"), f"{idx:02d}"),
                 "title": _atividade_titulo(item),
                 "level": _nivel_template(item.get("criticidade")),
-                "body": _atividade_descricao(item),
+                "body": _atividade_corpo_executivo(item),
                 "tags": tags,
                 "action": _atividade_acao(item),
             }
@@ -934,7 +1057,7 @@ def _build_pendencias_tools(pendencias: list[dict[str, Any]]) -> list[dict[str, 
     for idx, item in enumerate(pendencias, start=1):
         title = _text(item.get("titulo") or item.get("title"), _atividade_titulo(item))
         prazo = _atividade_prazo(item)
-        desc = _text(item.get("descricao") or item.get("desc") or _atividade_descricao(item))
+        desc = _compact_text(item.get("descricao") or item.get("desc") or _atividade_descricao(item), 700)
         if prazo != INFORMACAO_NAO_INFORMADA and "Prazo" not in desc:
             desc = f"{desc} Prazo vigente: {prazo}."
         output.append(
@@ -958,7 +1081,7 @@ def _build_plano(dados: dict[str, Any], pontos: list[dict[str, Any]], pendencias
             {
                 "id": f"{idx:02d}",
                 "title": _text(item.get("titulo") or item.get("title"), "Ação semanal"),
-                "body": _text(item.get("descricao") or item.get("resultado_esperado") or item.get("body")),
+                "body": _compact_text(item.get("descricao") or item.get("resultado_esperado") or item.get("body"), 600),
                 "meta": " · ".join([p for p in [_text(item.get("responsavel")), _date_br(item.get("prazo"), "")] if p]),
                 "level": _text(item.get("prioridade") or item.get("level"), "Média"),
             }
@@ -978,7 +1101,7 @@ def _build_plano(dados: dict[str, Any], pontos: list[dict[str, Any]], pendencias
             {
                 "id": f"{idx:02d}",
                 "title": _text(item.get("title") or item.get("titulo")),
-                "body": _text(item.get("action") or item.get("desc") or item.get("descricao"), "Acompanhar evolução na próxima reunião."),
+                "body": _compact_text(item.get("action") or item.get("desc") or item.get("descricao"), 600) or "Acompanhar evolução na próxima reunião.",
                 "meta": " · ".join([p for p in [_text(item.get("responsavel") or item.get("responsible")), _text(item.get("deadline") or item.get("prazo"))] if p]) or "Responsável/prazo conforme ata",
                 "level": _level_label(item.get("level") or item.get("criticidade")),
             }
@@ -1195,8 +1318,17 @@ def _merge_with_gpt3(base: dict[str, Any], gpt3: dict[str, Any] | None) -> dict[
 
     # Listas do GPT3 só entram quando o adaptador não conseguiu montar nada relevante.
     for key in ["criticalPoints", "phases", "schedule", "ambientes", "extraEscopo", "pendenciasTools", "planoAcao", "ata", "deliberacoes", "historicoMudancas"]:
-        if not merged.get(key) and isinstance(gpt3.get(key), list):
-            merged[key] = gpt3[key]
+        incoming = gpt3.get(key)
+        if not isinstance(incoming, list):
+            continue
+        # Evita card vazio, principalmente em extraEscopo.
+        incoming = [
+            item for item in incoming
+            if not isinstance(item, dict)
+            or _text(item.get("title") or item.get("titulo") or item.get("body") or item.get("descricao") or item.get("text") or item.get("description"))
+        ]
+        if not merged.get(key) and incoming:
+            merged[key] = incoming
 
     return merged
 

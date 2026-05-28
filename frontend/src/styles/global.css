@@ -374,3 +374,10 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; lin
   .span-2 { grid-column: span 1; }
   .report-frame-wrap { height: 620px; }
 }
+
+.alert--info { border-color: rgba(45,108,223,.28); background: rgba(45,108,223,.07); color: var(--info); }
+.upload-box--disabled { opacity: .72; }
+.upload-box--disabled .upload-box__drop { cursor: not-allowed; background: var(--muted-bg); }
+.upload-box--disabled .upload-box__icon { opacity: .7; }
+.pipeline__head p { margin-top: 3px; color: var(--muted-fg); font-size: 12px; }
+.pipeline__hint { margin-top: 10px; color: var(--danger); font-size: 12px; }

@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, type Obra, type PipelineStatus as PipelineStatusType } from '../api/api';
+import { api, type Obra, type PipelineEtapa, type PipelineStatus as PipelineStatusType } from '../api/api';
 import { Button, LinkButton } from '../components/Button';
 import { Card } from '../components/Card';
 import { Field, Input, Textarea } from '../components/FormControls';
@@ -11,8 +11,14 @@ import { UploadBox } from '../components/UploadBox';
 type PipelineResponse = {
   relatorio_id: number;
   status: string;
-  etapas?: Record<string, unknown>[];
+  etapas?: PipelineEtapa[];
 };
+
+const terminalStatuses = new Set(['concluido', 'concluida', 'erro']);
+
+function normalizeStatus(status?: string | null) {
+  return String(status || 'pendente').toLowerCase();
+}
 
 export function NovoRelatorioPage() {
   const { obraId } = useParams();
@@ -36,28 +42,43 @@ export function NovoRelatorioPage() {
     api.get<Obra>(`/obras/${id}`).then((response) => setObra(response.data));
   }, [id]);
 
+  const currentStatus = normalizeStatus(pipeline?.status || result?.status || (processing ? 'processando' : 'pendente'));
+  const pipelineFinished = terminalStatuses.has(currentStatus);
+  const pipelineRunning = Boolean(result?.relatorio_id) && !pipelineFinished;
+  const formLocked = processing || pipelineRunning;
+
   useEffect(() => {
-    if (!result?.relatorio_id) return;
+    if (!result?.relatorio_id || pipelineFinished) return;
     const relatorioId = result.relatorio_id;
     let active = true;
+
     async function loadStatus() {
       try {
         const response = await api.get<PipelineStatusType>(`/pipeline/${relatorioId}/status`);
         if (active) setPipeline(response.data);
       } catch {
-        // A pipeline pode terminar rápido e o status será carregado na tela do relatório.
+        // A pipeline pode ainda estar inicializando; tentamos novamente no próximo ciclo.
       }
     }
+
     loadStatus();
-    const timer = window.setInterval(loadStatus, 3000);
+    const timer = window.setInterval(loadStatus, 1800);
     return () => {
       active = false;
       window.clearInterval(timer);
     };
-  }, [result?.relatorio_id]);
+  }, [result?.relatorio_id, pipelineFinished]);
+
+  const buttonText = useMemo(() => {
+    if (processing) return 'Iniciando processamento...';
+    if (pipelineRunning) return 'Processando relatório...';
+    return 'Processar relatório';
+  }, [pipelineRunning, processing]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (formLocked) return;
+
     setError(null);
     setProcessing(true);
     setResult(null);
@@ -77,8 +98,13 @@ export function NovoRelatorioPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setResult(response.data);
+      setPipeline({
+        relatorio_id: response.data.relatorio_id,
+        status: response.data.status,
+        etapas: response.data.etapas || [],
+      });
     } catch (err) {
-      setError('Não foi possível processar o relatório. Verifique a API key, o banco e os arquivos enviados.');
+      setError('Não foi possível iniciar o processamento do relatório. Verifique a API key, o banco e os arquivos enviados.');
     } finally {
       setProcessing(false);
     }
@@ -94,8 +120,10 @@ export function NovoRelatorioPage() {
       />
 
       {error ? <div className="alert alert--error">{error}</div> : null}
+      {currentStatus === 'erro' ? <div className="alert alert--error">O processamento terminou com erro. Verifique o status da pipeline e o log do backend.</div> : null}
+      {formLocked ? <div className="alert alert--info">Processamento em andamento. Os campos e anexos foram bloqueados para evitar alteração das fontes durante a pipeline.</div> : null}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} aria-busy={formLocked}>
         <div className="grid-two align-start">
           <Card className="form-card">
             <h2>Dados básicos do relatório</h2>
@@ -104,19 +132,19 @@ export function NovoRelatorioPage() {
                 <Input value={obra?.nome || ''} disabled />
               </Field>
               <Field label="Número da ata">
-                <Input value={numeroAta} onChange={(e) => setNumeroAta(e.target.value)} placeholder="Ex: 008" />
+                <Input value={numeroAta} onChange={(e) => setNumeroAta(e.target.value)} placeholder="Ex: 008" disabled={formLocked} />
               </Field>
               <Field label="Data da reunião" required>
-                <Input type="date" value={dataReferencia} onChange={(e) => setDataReferencia(e.target.value)} required />
+                <Input type="date" value={dataReferencia} onChange={(e) => setDataReferencia(e.target.value)} required disabled={formLocked} />
               </Field>
               <Field label="Observações adicionais" className="span-2">
-                <Textarea rows={4} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+                <Textarea rows={4} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} disabled={formLocked} />
               </Field>
             </div>
           </Card>
 
           <Card>
-            <UploadBox files={files} onFilesChange={setFiles} />
+            <UploadBox files={files} onFilesChange={setFiles} disabled={formLocked} />
           </Card>
         </div>
 
@@ -124,27 +152,29 @@ export function NovoRelatorioPage() {
           <h2>Fontes complementares</h2>
           <div className="form-grid">
             <Field label="Conversas de WhatsApp" className="span-2">
-              <Textarea rows={8} value={conteudoWhatsapp} onChange={(e) => setConteudoWhatsapp(e.target.value)} placeholder="Cole aqui as mensagens relevantes da semana." />
+              <Textarea rows={8} value={conteudoWhatsapp} onChange={(e) => setConteudoWhatsapp(e.target.value)} placeholder="Cole aqui as mensagens relevantes da semana." disabled={formLocked} />
             </Field>
             <Field label="Transcrição de reunião" className="span-2">
-              <Textarea rows={8} value={conteudoTranscricao} onChange={(e) => setConteudoTranscricao(e.target.value)} placeholder="Cole aqui a transcrição ou resumo da reunião." />
+              <Textarea rows={8} value={conteudoTranscricao} onChange={(e) => setConteudoTranscricao(e.target.value)} placeholder="Cole aqui a transcrição ou resumo da reunião." disabled={formLocked} />
             </Field>
           </div>
         </Card>
 
         <div className="form-actions">
-          <Button type="submit" disabled={processing}>{processing ? 'Processando...' : 'Processar relatório'}</Button>
+          <Button type="submit" disabled={formLocked}>{buttonText}</Button>
         </div>
       </form>
 
       <Card className="mt-24">
-        <PipelineStatus status={processing ? 'processando' : result?.status || 'pendente'} etapas={pipeline?.etapas || []} />
+        <PipelineStatus status={currentStatus} etapas={pipeline?.etapas || result?.etapas || []} />
         {result?.relatorio_id ? (
           <div className="result-box">
-            <strong>Relatório criado com sucesso.</strong>
+            <strong>{pipelineFinished && currentStatus === 'concluido' ? 'Relatório criado com sucesso.' : 'Relatório em processamento.'}</strong>
             <p>ID: {result.relatorio_id}</p>
             <div className="action-row">
-              <Button onClick={() => navigate(`/relatorios/${result.relatorio_id}`)}>Abrir relatório</Button>
+              <Button onClick={() => navigate(`/relatorios/${result.relatorio_id}`)} disabled={currentStatus !== 'concluido'}>
+                Abrir relatório
+              </Button>
               <Link to={`/obras/${id}`}>Voltar para obra</Link>
             </div>
           </div>

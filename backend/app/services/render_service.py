@@ -5,46 +5,42 @@ import re
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-from app.core.config import get_settings
-
-settings = get_settings()
-TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
-TEMPLATE_NAME = "relatorio_template.html"
+APP_DIR = Path(__file__).resolve().parents[1]
+TEMPLATE_PATH = APP_DIR / "templates" / "relatorio_template.html"
+OUTPUT_ROOT = APP_DIR / "outputs" / "reports"
 
 
-def _replace_inline_data(template: str, report_json: dict[str, Any]) -> str:
-    data = json.dumps(report_json, ensure_ascii=False, separators=(",", ":"))
-    pattern = r"const\s+DATA\s*=\s*\{.*?\};"
-    replacement = f"const DATA = {data};"
-    rendered, count = re.subn(pattern, replacement, template, count=1, flags=re.DOTALL)
-    if count:
-        return rendered
-    return template.replace("</script>", f"\nconst DATA = {data};\n</script>", 1)
+def _json_for_script(value: dict[str, Any] | None) -> str:
+    """Serializa JSON para uso seguro dentro de <script>.
+
+    O erro do relatório 7 ocorreu porque quebras de linha reais foram inseridas
+    dentro de strings JavaScript, quebrando o `const DATA = ...` e impedindo a
+    renderização. `json.dumps` mantém as quebras como `\\n` e também escapamos
+    `</` para evitar fechamento acidental de script.
+    """
+    return json.dumps(value or {}, ensure_ascii=False, default=str).replace("</", "<\\/")
 
 
 def render_report_html(relatorio_id: int, report_json: dict[str, Any]) -> str:
-    template_path = TEMPLATES_DIR / TEMPLATE_NAME
-    if not template_path.exists():
-        raise FileNotFoundError(f"Template de relatório não encontrado: {template_path}")
+    if not TEMPLATE_PATH.exists():
+        raise FileNotFoundError(f"Template do relatório não encontrado: {TEMPLATE_PATH}")
 
-    template_text = template_path.read_text(encoding="utf-8")
+    template = TEMPLATE_PATH.read_text(encoding="utf-8")
+    data_js = _json_for_script(report_json)
 
-    if "const DATA" in template_text:
-        html = _replace_inline_data(template_text, report_json)
+    if "const DATA = {};" in template:
+        html = template.replace("const DATA = {};", f"const DATA = {data_js};", 1)
     else:
-        env = Environment(
-            loader=FileSystemLoader(str(TEMPLATES_DIR)),
-            autoescape=select_autoescape(["html", "xml"]),
+        html = re.sub(
+            r"const\s+DATA\s*=\s*.*?;\s*(?=const\s+TABS)",
+            f"const DATA = {data_js};\n\n",
+            template,
+            count=1,
+            flags=re.DOTALL,
         )
-        html = env.get_template(TEMPLATE_NAME).render(report=report_json)
 
-    relative_dir = Path("reports") / str(relatorio_id)
-    output_dir = settings.output_path / relative_dir
+    output_dir = OUTPUT_ROOT / str(relatorio_id)
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    output_file = output_dir / "relatorio_semanal_obra.html"
-    output_file.write_text(html, encoding="utf-8")
-
-    return str(relative_dir / output_file.name)
+    output_path = output_dir / "relatorio_semanal_obra.html"
+    output_path.write_text(html, encoding="utf-8")
+    return str(output_path)
