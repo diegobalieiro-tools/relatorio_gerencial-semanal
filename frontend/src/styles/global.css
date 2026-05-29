@@ -92,6 +92,9 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; lin
   margin: 0 auto;
   padding: 32px 39px 80px;
 }
+.app-main--wide {
+  max-width: 1540px;
+}
 
 .page-title {
   display: flex;
@@ -154,6 +157,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; lin
 }
 .mt-24 { margin-top: 24px; }
 .grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+
 .align-start { align-items: start; }
 .narrow { max-width: 1180px; }
 
@@ -249,6 +253,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; lin
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
 .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); }
+.kpi-grid--obra-detail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .kpi-card__label { color: var(--muted-fg); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .kpi-card__value { margin-top: 8px; font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--primary-700); }
 .kpi-card__desc { margin-top: 4px; font-size: 12px; color: var(--muted-fg); }
@@ -349,7 +354,11 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; lin
 .filters { display: grid; grid-template-columns: 1fr 240px; gap: 12px; margin-bottom: 18px; }
 
 .report-card { padding-bottom: 16px; }
-.report-frame-wrap { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: #fff; height: 720px; }
+.report-card--wide { padding-left: 26px; padding-right: 26px; }
+.report-detail-grid { grid-template-columns: minmax(380px, .95fr) minmax(360px, 1fr); }
+.reprocess-field { margin-top: 4px; }
+.reprocess-field .textarea { min-height: 132px; }
+.report-frame-wrap { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: #fff; height: min(840px, calc(100vh - 150px)); min-height: 720px; }
 .report-frame { width: 100%; height: 100%; border: 0; background: #fff; }
 .json-viewer { max-height: 560px; overflow: auto; background: #0f1e2b; color: #d8f6f2; border-radius: 12px; padding: 18px; font-size: 12px; line-height: 1.55; }
 .dictionary-card .textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; min-height: 460px; }
@@ -372,7 +381,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; lin
   .obra-card { max-width: none; }
   .form-grid, .filters { grid-template-columns: 1fr; }
   .span-2 { grid-column: span 1; }
-  .report-frame-wrap { height: 620px; }
+  .report-frame-wrap { height: 620px; min-height: 620px; }
 }
 
 .alert--info { border-color: rgba(45,108,223,.28); background: rgba(45,108,223,.07); color: var(--info); }
@@ -381,3 +390,49 @@ h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.015em; lin
 .upload-box--disabled .upload-box__icon { opacity: .7; }
 .pipeline__head p { margin-top: 3px; color: var(--muted-fg); font-size: 12px; }
 .pipeline__hint { margin-top: 10px; color: var(--danger); font-size: 12px; }
+
+/* Reprocessamento com acompanhamento visual */
+.status-badge--reprocessando { background: rgba(45,108,223,.10); color: var(--info); border-color: rgba(45,108,223,.30); }
+.status-badge--atrasado { background: rgba(214,68,60,.10); color: var(--danger); border-color: rgba(214,68,60,.30); }
+.reprocess-progress {
+  border: 1px solid var(--border);
+  background: #f7fbfb;
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.reprocess-progress__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.reprocess-progress__top span {
+  color: var(--primary-700);
+  font-weight: 800;
+}
+.reprocess-progress__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #e4ecef;
+  overflow: hidden;
+}
+.reprocess-progress__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width .25s ease;
+}
+.reprocess-progress p {
+  margin: 0;
+  color: var(--muted-fg);
+  font-size: 12px;
+}
+
+/* Pendências enxutas na tela da obra */
+.compact-table-wrap .data-table { min-width: 860px; }
+.compact-pendencias-table td:first-child { color: var(--fg); }
+.compact-pendencias-table td:first-child strong { display: block; max-width: 360px; }

@@ -114,6 +114,46 @@ class OpenAIService:
         )
         return response.choices[0].message.content or "{}"
 
+
+    async def run_inline_prompt_json(
+        self,
+        prompt: str,
+        model: str | None = None,
+    ) -> OpenAIJsonResult:
+        """Executa um prompt dinâmico e retorna JSON válido.
+
+        Usado em fluxos de revisão/reprocessamento, quando o prompt depende
+        de instruções escritas pelo usuário em tempo real e não de um arquivo
+        fixo em `app/prompts`.
+        """
+        primary = model or settings.openai_model_primary
+        candidates = [primary]
+        if settings.openai_model_fallback and settings.openai_model_fallback not in candidates:
+            candidates.append(settings.openai_model_fallback)
+
+        last_error: Exception | None = None
+        for candidate in candidates:
+            try:
+                raw_text, tin, tout = await self._call_chat_api(candidate, prompt, files=None, force_json=True)
+                try:
+                    data = self._json_from_text(raw_text)
+                except Exception:
+                    repaired = await self._repair_json(raw_text, candidate)
+                    raw_text = repaired
+                    data = self._json_from_text(repaired)
+                return OpenAIJsonResult(
+                    data=data,
+                    raw_text=raw_text,
+                    model_used=candidate,
+                    tokens_input=tin,
+                    tokens_output=tout,
+                )
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                continue
+
+        raise RuntimeError(f"Falha ao obter JSON válido da OpenAI: {last_error}")
+
     async def run_prompt_json(
         self,
         prompt_filename: str,

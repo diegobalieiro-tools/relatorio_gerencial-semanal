@@ -3,10 +3,89 @@ import { Link, useParams } from 'react-router-dom';
 import { api, type HistoricoItem, type Obra, type Relatorio } from '../api/api';
 import { LinkButton } from '../components/Button';
 import { Card } from '../components/Card';
-import { DataTable } from '../components/DataTable';
 import { KpiCard } from '../components/KpiCard';
 import { PageTitle } from '../components/PageTitle';
 import { StatusBadge } from '../components/StatusBadge';
+
+function asText(value: unknown, fallback = '—') {
+  if (value === null || value === undefined || value === '') return fallback;
+  return String(value);
+}
+
+function formatDate(value: unknown) {
+  const text = asText(value, '');
+  if (!text) return '—';
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    const [year, month, day] = text.slice(0, 10).split('-');
+    return `${day}/${month}/${year}`;
+  }
+  return text;
+}
+
+function getStartDate(row: HistoricoItem) {
+  return row.data_inicio || row.data_abertura || row.created_at || row.data_item || row.inicio || row.data_referencia;
+}
+
+function getEndDate(row: HistoricoItem) {
+  return row.prazo || row.prazo_vigente || row.termino || row.data_fim || row.prazo_limite;
+}
+
+function isConcluido(row: HistoricoItem) {
+  const status = String(row.status || '').toLowerCase();
+  return status.includes('conclu');
+}
+
+function getPrazoStatus(row: HistoricoItem) {
+  if (isConcluido(row)) return 'Concluído';
+  const raw = getEndDate(row);
+  const text = asText(raw, '');
+  if (!text || !/^\d{4}-\d{2}-\d{2}/.test(text)) return 'Em andamento';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDate = new Date(`${text.slice(0, 10)}T00:00:00`);
+  return dueDate < today ? 'Atrasado' : 'Em andamento';
+}
+
+function PendenciasAtivasTable({ rows }: { rows: HistoricoItem[] }) {
+  const visibleRows = rows;
+
+  if (!visibleRows.length) {
+    return <div className="empty-state compact">Nenhuma pendência ativa registrada.</div>;
+  }
+
+  return (
+    <div className="table-wrap compact-table-wrap">
+      <table className="data-table compact-pendencias-table">
+        <thead>
+          <tr>
+            <th>Pendência</th>
+            <th>Data início</th>
+            <th>Fim esperado</th>
+            <th>Criticidade</th>
+            <th>Responsável</th>
+            <th>Status prazo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleRows.map((row) => {
+            const prazoStatus = getPrazoStatus(row);
+            return (
+              <tr key={`${row.id}-${row.relatorio_id}-${row.titulo}`}>
+                <td><strong>{asText(row.titulo || row.title)}</strong></td>
+                <td>{formatDate(getStartDate(row))}</td>
+                <td>{formatDate(getEndDate(row))}</td>
+                <td>{asText(row.criticidade || row.nivel || row.priority)}</td>
+                <td>{asText(row.responsavel || row.empresa_responsavel || row.responsible)}</td>
+                <td><StatusBadge status={prazoStatus}>{prazoStatus}</StatusBadge></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export function ObraDetalhePage() {
   const { obraId } = useParams();
@@ -14,7 +93,6 @@ export function ObraDetalhePage() {
   const [obra, setObra] = useState<Obra | null>(null);
   const [relatorios, setRelatorios] = useState<Relatorio[]>([]);
   const [pendencias, setPendencias] = useState<HistoricoItem[]>([]);
-  const [pontos, setPontos] = useState<HistoricoItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,17 +100,15 @@ export function ObraDetalhePage() {
     async function load() {
       try {
         setLoading(true);
-        const [obraRes, relatoriosRes, pendenciasRes, pontosRes] = await Promise.all([
+        const [obraRes, relatoriosRes, pendenciasRes] = await Promise.all([
           api.get<Obra>(`/obras/${id}`),
           api.get<Relatorio[]>(`/obras/${id}/relatorios`),
           api.get<HistoricoItem[]>(`/obras/${id}/historico/pendencias`),
-          api.get<HistoricoItem[]>(`/obras/${id}/historico/pontos-criticos`),
         ]);
         if (!ignore) {
           setObra(obraRes.data);
           setRelatorios(relatoriosRes.data);
           setPendencias(pendenciasRes.data);
-          setPontos(pontosRes.data);
         }
       } finally {
         if (!ignore) setLoading(false);
@@ -59,10 +135,9 @@ export function ObraDetalhePage() {
         }
       />
 
-      <div className="kpi-grid">
+      <div className="kpi-grid kpi-grid--obra-detail">
         <KpiCard label="Relatórios gerados" value={relatorios.length} description="Relatórios vinculados à obra" />
         <KpiCard label="Pendências abertas" value={pendencias.length} description="Itens normalizados em histórico" />
-        <KpiCard label="Pontos críticos ativos" value={pontos.length} description="Pontos críticos recentes" />
         <KpiCard label="Última reunião" value={relatorios[0]?.data_referencia || 'Não informado'} description="Data do relatório mais recente" />
       </div>
 
@@ -100,14 +175,15 @@ export function ObraDetalhePage() {
       </div>
 
       <Card>
-        <div className="section-heading"><h2>Pendências abertas</h2></div>
-        <DataTable rows={pendencias.slice(0, 8)} />
+        <div className="section-heading">
+          <div>
+            <h2>Pendências abertas</h2>
+            <p>Visão enxuta com prazo, responsável e situação calculada pela data atual.</p>
+          </div>
+        </div>
+        <PendenciasAtivasTable rows={pendencias} />
       </Card>
 
-      <Card>
-        <div className="section-heading"><h2>Pontos críticos recorrentes</h2></div>
-        <DataTable rows={pontos.slice(0, 8)} />
-      </Card>
     </div>
   );
 }

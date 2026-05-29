@@ -436,6 +436,10 @@ const TABS = [
   {id:"ata",label:"Ata"},
   {id:"deliberacoes",label:"Deliberações"},
 ];
+const rawHiddenSections = DATA.hiddenSections || DATA.hidden_sections || [];
+const hiddenSections = new Set((Array.isArray(rawHiddenSections) ? rawHiddenSections : []).map(id => String(id || '').trim()).filter(Boolean));
+const VISIBLE_TABS = TABS.filter(t => !hiddenSections.has(t.id));
+hiddenSections.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
 
 const levelToTone = {
   "critico":"critico","crítico":"critico","critica":"critico","crítica":"critico",
@@ -510,11 +514,11 @@ setText("delib-desc", sectionTexts.deliberacoes || "Visão executiva ordenada po
 
 // Nav
 const navEl = document.getElementById("nav-tabs");
-navEl.innerHTML = TABS.map(t=>`<button class="tab" data-id="${t.id}">${esc(t.label)}</button>`).join("");
+navEl.innerHTML = VISIBLE_TABS.map(t=>`<button class="tab" data-id="${t.id}">${esc(t.label)}</button>`).join("");
 function setActive(id){
   navEl.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.id===id));
 }
-setActive(TABS[0].id);
+if (VISIBLE_TABS.length) setActive(VISIBLE_TABS[0].id);
 navEl.addEventListener("click",e=>{
   const b = e.target.closest(".tab"); if(!b) return;
   const el = document.getElementById(b.dataset.id); if(!el) return;
@@ -525,7 +529,7 @@ const io = new IntersectionObserver(entries=>{
   const v = entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
   if(v) setActive(v.target.id);
 },{rootMargin:"-30% 0px -55% 0px",threshold:[0,.25,.5,.75,1]});
-TABS.forEach(t=>{const el=document.getElementById(t.id); if(el) io.observe(el);});
+VISIBLE_TABS.forEach(t=>{const el=document.getElementById(t.id); if(el) io.observe(el);});
 
 // Críticos
 const criticalAlert = DATA.criticalAlert || {};

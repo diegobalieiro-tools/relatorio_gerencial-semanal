@@ -1,7 +1,10 @@
 import type { PropsWithChildren } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 export function Layout({ children }: PropsWithChildren) {
+  const location = useLocation();
+  const isReportDetail = /^\/relatorios\/[^/]+/.test(location.pathname);
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -17,7 +20,7 @@ export function Layout({ children }: PropsWithChildren) {
           </nav>
         </div>
       </header>
-      <main className="app-main">{children}</main>
+      <main className={`app-main${isReportDetail ? ' app-main--wide' : ''}`}>{children}</main>
     </div>
   );
 }

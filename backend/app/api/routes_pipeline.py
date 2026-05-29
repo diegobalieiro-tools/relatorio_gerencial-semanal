@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pydantic import BaseModel
+
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +13,10 @@ from app.services.pipeline_service import PipelineService, parse_data_referencia
 from app.services.storage_service import StoredFileContext
 
 router = APIRouter(prefix="/api/pipeline", tags=["Pipeline"])
+
+class ReprocessarPipelineRequest(BaseModel):
+    instrucoes: str | None = None
+
 
 
 async def _executar_pipeline_background(
@@ -36,6 +42,22 @@ async def _executar_pipeline_background(
             conteudo_transcricao=conteudo_transcricao,
             semana_referencia=semana_referencia,
             observacoes=observacoes,
+        )
+    finally:
+        db.close()
+
+
+async def _executar_reprocessamento_background(
+    relatorio_id: int,
+    instrucoes: str,
+) -> None:
+    """Executa o reprocessamento fora da request para permitir progresso visual."""
+    db = SessionLocal()
+    try:
+        service = PipelineService(db)
+        await service.reprocessar_com_instrucoes(
+            relatorio_id=relatorio_id,
+            instrucoes=instrucoes,
         )
     finally:
         db.close()
@@ -113,13 +135,31 @@ def status_pipeline(relatorio_id: int, db: Session = Depends(get_db)) -> Pipelin
 
 
 @router.post("/{relatorio_id}/reprocessar")
-def reprocessar_pipeline(relatorio_id: int, db: Session = Depends(get_db)) -> dict:
+async def reprocessar_pipeline(
+    relatorio_id: int,
+    background_tasks: BackgroundTasks,
+    payload: ReprocessarPipelineRequest,
+    db: Session = Depends(get_db),
+) -> dict:
     relatorio = db.get(RelatorioSemanal, relatorio_id)
     if not relatorio:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relatório não encontrado.")
 
-    return {
-        "relatorio_id": relatorio_id,
-        "status": "nao_implementado",
-        "mensagem": "O reprocessamento reaproveitando anexos salvos será implementado após a tela de revisão da pipeline.",
-    }
+    instrucoes = (payload.instrucoes or "").strip()
+    if not instrucoes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe as mudanças desejadas antes de reprocessar.")
+
+    try:
+        service = PipelineService(db)
+        response = service.iniciar_reprocessamento(
+            relatorio_id=relatorio_id,
+            instrucoes=instrucoes,
+        )
+        background_tasks.add_task(_executar_reprocessamento_background, relatorio_id, instrucoes)
+        return response
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro ao iniciar reprocessamento: {exc}") from exc
