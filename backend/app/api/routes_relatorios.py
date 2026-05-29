@@ -150,7 +150,10 @@ def visualizar_html_relatorio(relatorio_id: int, db: Session = Depends(get_db)) 
     return FileResponse(
         path=html_path,
         media_type="text/html; charset=utf-8",
-        filename=html_path.name,
+        headers={
+            "Content-Disposition": f'inline; filename="{html_path.name}"',
+            "Cache-Control": "no-cache",
+        },
     )
 
 
@@ -167,6 +170,7 @@ def baixar_html_relatorio(relatorio_id: int, db: Session = Depends(get_db)) -> F
 
     return FileResponse(
         path=html_path,
-        media_type="text/html",
+        media_type="text/html; charset=utf-8",
         filename="relatorio_semanal_obra.html",
+        content_disposition_type="attachment",
     )

@@ -244,16 +244,32 @@ td{padding:.75rem 1rem;border-top:1px solid rgba(227,234,238,.7)}
 .ata .dec p{margin:.25rem 0 0;color:var(--brand-deep)}
 
 /* delib */
-.delib{display:flex;align-items:flex-start;gap:.75rem;padding:.75rem 1rem;border:1px solid var(--border);background:var(--card);border-radius:12px;box-shadow:var(--shadow-card);margin-bottom:.5rem}
-.delib .mark{flex-shrink:0;margin-top:2px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
-.delib .mark.crit{background:var(--destructive);color:#fff}
-.delib .mark.go{background:var(--brand);color:#fff}
-.delib .mark.open{background:var(--muted);color:var(--foreground)}
-.delib .body{flex:1;display:flex;flex-direction:column;gap:.25rem}
-@media(min-width:640px){.delib .body{flex-direction:row;justify-content:space-between;gap:1.5rem;align-items:flex-start}}
-.delib .text{font-size:14px;margin:0}
-.delib .meta{font-size:12px;font-weight:500;color:var(--brand-deep);flex-shrink:0;margin:0}
-@media(min-width:640px){.delib .meta{text-align:right}}
+.delib-board{display:flex;flex-direction:column;gap:1rem}
+.delib-group{border:1px solid var(--border);background:var(--card);border-radius:16px;box-shadow:var(--shadow-card);overflow:hidden}
+.delib-group-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;background:linear-gradient(180deg,rgba(238,244,246,.75),rgba(255,255,255,.92));border-bottom:1px solid var(--border);padding:1rem 1.25rem}
+.delib-group-head h3{margin:.15rem 0 0;font-size:1rem;font-weight:700;letter-spacing:-.01em}
+.delib-group-head p{margin:.35rem 0 0;font-size:13px;color:var(--muted-foreground);line-height:1.5}
+.delib-kicker{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--brand-deep)}
+.delib-count{display:inline-flex;margin-left:.5rem;padding:.1rem .45rem;border-radius:999px;background:var(--brand-soft);color:var(--brand-deep);font-size:11px;font-weight:700;vertical-align:middle}
+.delib-mark{flex-shrink:0;width:34px;height:34px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800}
+.delib-mark.crit{background:rgba(210,58,43,.16);color:var(--destructive)}
+.delib-mark.go{background:var(--brand);color:#fff}
+.delib-mark.open{background:var(--muted);color:var(--foreground)}
+.delib-mark.done{background:rgba(47,158,106,.16);color:var(--success)}
+.delib-group-list{display:grid;grid-template-columns:1fr;gap:.75rem;padding:1rem}
+@media(min-width:900px){.delib-group-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.delib-card{display:flex;align-items:flex-start;gap:.85rem;border:1px solid rgba(227,234,238,.9);background:#fff;border-radius:14px;padding:.95rem 1rem;min-height:118px}
+.delib-card.crit{border-color:rgba(210,58,43,.24);background:rgba(210,58,43,.035)}
+.delib-card.done{border-color:rgba(47,158,106,.22);background:rgba(47,158,106,.035)}
+.delib-card-icon{flex-shrink:0;padding-top:2px}
+.delib-content{min-width:0;flex:1}
+.delib-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+.delib-title-row h4{margin:0;font-size:14px;font-weight:700;line-height:1.35;color:var(--foreground)}
+.delib-meta-pill{flex-shrink:0;display:inline-flex;align-items:center;border:1px solid rgba(12,138,154,.22);background:var(--brand-soft);color:var(--brand-deep);padding:.15rem .5rem;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.delib-card p{margin:.45rem 0 0;font-size:13px;line-height:1.55;color:var(--muted-foreground)}
+.delib-foot{display:flex;flex-wrap:wrap;gap:.35rem .75rem;margin-top:.75rem;padding-top:.65rem;border-top:1px solid rgba(227,234,238,.75);font-size:11px;color:var(--muted-foreground)}
+.delib-foot strong{color:var(--brand-deep);font-weight:700}
+.delib-empty{border:1px solid var(--border);background:var(--card);border-radius:14px;padding:1rem 1.25rem;color:var(--muted-foreground);box-shadow:var(--shadow-card)}
 
 /* footer */
 footer{border-top:1px solid var(--border);background:rgba(238,244,246,.6);margin-top:0}
@@ -701,16 +717,62 @@ document.getElementById("ata-list").innerHTML = ata.length ? ata.map((i,idx)=>`
   </article>`).join("") : `<article class="card ata"><div class="ata-head"><span class="badge">—</span>${sticker("moderado","Sem ata")}</div><h3>Nenhum registro formal informado</h3><p>Não há deliberações de ata registradas para a semana.</p></article>`;
 
 // Deliberações
-const markClass = {"!":"crit","→":"go","○":"open","✓":"go"};
+const markClass = {"!":"crit","→":"go","○":"open","✓":"done"};
+const markLabel = {"!":"Críticas / decisão imediata","→":"Em andamento","○":"Abertas / informativas","✓":"Concluídas"};
+const markDesc = {
+  "!":"Itens que exigem decisão ou acompanhamento mais próximo para evitar impacto em prazo, custo ou liberação de frente.",
+  "→":"Ações em curso com responsável definido e prazo de acompanhamento.",
+  "○":"Registros abertos, informativos ou sem prazo formal definido.",
+  "✓":"Itens baixados ou concluídos registrados na ata."
+};
+function splitDelibText(text){
+  const raw = String(val(text, "")).trim();
+  const idx = raw.indexOf(":");
+  if(idx > 0 && idx <= 95){
+    return {title: raw.slice(0, idx).trim(), body: raw.slice(idx + 1).trim()};
+  }
+  return {title: raw || "Deliberação sem título", body: ""};
+}
+function splitDelibMeta(meta){
+  const parts = String(val(meta, "")).split("·").map(p=>p.trim()).filter(Boolean);
+  return {responsavel: parts[0] || "Não informado", prazo: parts.slice(1).join(" · ") || "Não informado"};
+}
 const deliberacoes = arr(DATA.deliberacoes);
-document.getElementById("delib-list").innerHTML = deliberacoes.length ? deliberacoes.map(d=>`
-  <li class="delib">
-    <span class="mark ${markClass[d.mark]||'open'}">${esc(d.mark || "○")}</span>
-    <div class="body">
-      <p class="text">${esc(d.text)}</p>
-      <p class="meta">${esc(d.meta)}</p>
+const delibOrder = ["!","→","○","✓"];
+const delibHtml = deliberacoes.length ? delibOrder.map(mark=>{
+  const items = deliberacoes.filter(d => String(d.mark || "○") === mark);
+  if(!items.length) return "";
+  return `<li class="delib-group">
+    <div class="delib-group-head">
+      <div>
+        <span class="delib-kicker">${esc(mark === "!" ? "Prioridade" : mark === "→" ? "Execução" : mark === "✓" ? "Baixados" : "Registros")}</span>
+        <h3>${esc(markLabel[mark])}<span class="delib-count">${items.length} ${items.length === 1 ? "item" : "itens"}</span></h3>
+        <p>${esc(markDesc[mark])}</p>
+      </div>
+      <span class="delib-mark ${markClass[mark] || "open"}">${esc(mark)}</span>
     </div>
-  </li>`).join("") : `<li class="delib"><span class="mark open">○</span><div class="body"><p class="text">Nenhuma deliberação consolidada registrada.</p><p class="meta">Sem prazo</p></div></li>`;
+    <div class="delib-group-list">
+      ${items.map(d=>{
+        const parsed = splitDelibText(d.text);
+        const meta = splitDelibMeta(d.meta);
+        const cardTone = mark === "!" ? "crit" : mark === "✓" ? "done" : "";
+        return `<article class="delib-card ${cardTone}">
+          <div class="delib-card-icon"><span class="delib-mark ${markClass[mark] || "open"}">${esc(mark)}</span></div>
+          <div class="delib-content">
+            <div class="delib-title-row">
+              <h4>${esc(parsed.title)}</h4>
+              <span class="delib-meta-pill">${esc(meta.prazo)}</span>
+            </div>
+            <p>${esc(parsed.body || "Acompanhar responsável e prazo vigente conforme ata.")}</p>
+            <div class="delib-foot"><span>Responsável</span><strong>${esc(meta.responsavel)}</strong><span>Prazo</span><strong>${esc(meta.prazo)}</strong></div>
+          </div>
+        </article>`;
+      }).join("")}
+    </div>
+  </li>`;
+}).join("") : `<li class="delib-empty">Nenhuma deliberação consolidada registrada.</li>`;
+document.getElementById("delib-list").classList.add("delib-board");
+document.getElementById("delib-list").innerHTML = delibHtml || `<li class="delib-empty">Nenhuma deliberação consolidada registrada.</li>`;
 </script>
 </body>
 </html>
